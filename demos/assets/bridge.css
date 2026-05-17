@@ -1,0 +1,42 @@
+/* Visual bridge: make React demo page feel closer to the main Bulma+Inter page */
+body {
+  background:
+    radial-gradient(1000px 500px at 5% -5%, rgba(37, 99, 235, 0.06), transparent 60%),
+    radial-gradient(800px 420px at 90% 0%, rgba(240, 147, 251, 0.06), transparent 60%),
+    #f8fafc !important;
+  font-family: 'Inter', 'Space Grotesk', system-ui, sans-serif !important;
+}
+
+.rounded-2xl, .rounded-xl, .rounded-lg {
+  border-color: #e2e8f0 !important;
+}
+
+* {
+  font-family: 'Inter', 'Space Grotesk', system-ui, sans-serif !important;
+}
+
+code, pre, .font-mono {
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important;
+}
+
+.bg-white\/80, .bg-white {
+  background: rgba(255, 255, 255, 0.92) !important;
+}
+
+.bg-sky-100, .bg-sky-50 {
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: var(--primary-color, #2563eb) !important;
+}
+
+.border-slate-200 {
+  border-color: #e2e8f0 !important;
+}
+
+.bg-slate-50 {
+  background: #f8fafc !important;
+}
+
+.bg-white.p-2 pre, .bg-slate-50 pre {
+  background: #f1f5f9 !important;
+  border-radius: 8px !important;
+}

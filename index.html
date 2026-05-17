@@ -207,7 +207,7 @@
   </button>
 
   <!-- More Works Dropdown -->
-  <div class="more-works-container">
+  <!-- <div class="more-works-container">
     <button class="more-works-btn" onclick="toggleMoreWorks()" title="View More Works from Our Lab">
       <i class="fas fa-flask"></i>
       More Works
@@ -221,19 +221,14 @@
         </button>
       </div>
       <div class="works-list">
-        <!-- TODO: Replace with your lab's related works -->
         <a href="https://arxiv.org/abs/PAPER_ID_1" class="work-item" target="_blank">
           <div class="work-info">
-            <!-- TODO: Replace with actual paper title -->
             <h5>Paper Title 1</h5>
-            <!-- TODO: Replace with brief description -->
             <p>Brief description of the work and its main contribution.</p>
-            <!-- TODO: Replace with venue and year -->
             <span class="work-venue">Conference/Journal 2024</span>
           </div>
           <i class="fas fa-external-link-alt"></i>
         </a>
-        <!-- TODO: Add more related works or remove extra items -->
         <a href="https://arxiv.org/abs/PAPER_ID_2" class="work-item" target="_blank">
           <div class="work-info">
             <h5>Paper Title 2</h5>
@@ -252,7 +247,7 @@
         </a>
       </div>
     </div>
-  </div>
+  </div> -->
 
   <main id="main-content">
   <section class="hero">
@@ -267,11 +262,11 @@
               <span class="author-block">
                 <a href="https://github.com/czyarl" target="_blank">Zheyu Chen</a><sup>1</sup>,</span>
               <span class="author-block">
-                <a href="SECOND AUTHOR PERSONAL LINK" target="_blank">Huiteng Zhuang</a><sup>2</sup>,</span>
+                <a href="https://github.com/HuitengZhuang" target="_blank">Huiteng Zhuang</a><sup>2</sup>,</span>
               <span class="author-block">
                 <a href="https://github.com/PlayerIon" target="_blank">Zhuohuan Li</a><sup>3</sup>,</span>
               <span class="author-block">
-                <a href="https://www.chuanhao-li.com/" target="_blank">Zhuohuan Li</a><sup>3</sup>,</span>
+                <a href="https://www.chuanhao-li.com/" target="_blank">Chuanhao Li</a><sup>3</sup>,</span>
             </div>
 
             <div class="is-size-5 publication-authors">
@@ -357,7 +352,7 @@
 
 
 <!-- Image carousel -->
-<section class="hero is-small">
+<section class="hero is-small is-light">
   <div class="hero-body">
     <div class="container">
       <h2 class="title is-3 has-text-centered">Methodology</h2>
@@ -382,32 +377,27 @@
           Illustration of DEVS-Gen. A natural-language specification is transformed into a discrete-event world model via a two-stage pipeline; its generated artifacts, including the model hierarchy and event stream, can be used to build visualization frontends for animation and interactive inspection.
         </h2>
       </div>
+    </div>
   </div>
-</div>
-</div>
 </section>
 
 <section class="hero is-small">
   <div class="hero-body">
-    <div class="container">
+    <div class="container is-max-desktop">
       <h2 class="title is-3 has-text-centered">Benchmark Scenarios</h2>
       <div class="content has-text-justified mb-5">
         <p>
           To systematically evaluate our pipeline, we built a comprehensive benchmark comprising 7 distinct scenarios across diverse domains (logistics, networking, service operations, etc.) with varying dynamic characteristics. 
         </p>
       </div>
-      <!-- <div id="results-carousel" class="carousel results-carousel"> -->
-       <div class="item">
-        <!-- TODO: Replace with your research result images -->
+      <div class="item">
         <img src="static/images/benchmark_scenarios.png" alt="Benchmark Scenarios" loading="lazy"/>
-        <!-- TODO: Replace with description of this result -->
         <h2 class="subtitle has-text-centered">
           Benchmark scenarios summary. The dataset covers diverse domains and dynamic characteristics, ordered by their overall scale. We further quantify complexity through specification length (Words), number of entities (Ents), distinct event types (Evts), and reference code size (Ref. LOC).
         </h2>
-      <!-- </div> -->
+      </div>
+    </div>
   </div>
-</div>
-</div>
 </section>
 
 <section class="hero is-small is-light">
@@ -442,7 +432,7 @@
 </section>
 <!-- End image carousel -->
 
-<section class="section hero is-light">
+<section class="section hero">
   <div class="container is-max-desktop">
     <div class="columns is-centered">
       <div class="column is-four-fifths">
@@ -496,7 +486,7 @@ python eval_runner.py \
 </section>
 
 <!-- Teaser video-->
-<section class="hero is-small">
+<section class="hero is-small is-light">
   <div class="hero-body">
     <div class="container is-max-desktop">
       <h2 class="title is-3 has-text-centered">Simulation Demo: Strategic Airlift</h2>
@@ -517,7 +507,60 @@ python eval_runner.py \
 </section>
 <!-- End teaser video -->
 
-<!-- Video carousel -->
+<!-- Case Studies -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Case Studies</h2>
+      <div class="content has-text-justified mb-5">
+        <p>
+          Below we showcase two representative applications of our pipeline. Click any card to explore the full specification, generated model hierarchy, code structure, and evaluation details in an interactive view.
+        </p>
+      </div>
+      <div class="columns is-centered is-multiline">
+
+        <!-- Benchmark Deep Dive Card -->
+        <div class="column is-half-desktop is-half-tablet">
+          <a href="javascript:void(0);" onclick="openReactModal('benchmark')" class="case-card">
+            <div class="case-card-inner">
+              <div class="case-icon">
+                <i class="fas fa-microscope"></i>
+              </div>
+              <h3 class="case-title">Benchmark Deep Dive</h3>
+              <p class="case-desc">Full walkthrough of the Strategic Airlift benchmark: from YAML specification, through the 15-node DEVS model hierarchy and generated code, to trace-based evaluation.</p>
+              <div class="case-highlights">
+                <span class="highlight-tag">Spec → Model → Code → Eval</span>
+                <span class="highlight-tag">15-node hierarchy</span>
+                <span class="highlight-tag">Checker rules</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Real-World Usage Card -->
+        <div class="column is-half-desktop is-half-tablet">
+          <a href="javascript:void(0);" onclick="openReactModal('usage')" class="case-card">
+            <div class="case-card-inner">
+              <div class="case-icon">
+                <i class="fas fa-project-diagram"></i>
+              </div>
+              <h3 class="case-title">Real-World Usage</h3>
+              <p class="case-desc">ICU sepsis treatment and wet-lab scheduling: comparing direct LLM reasoning (incorrect) vs. our model-assisted workflow (correct) with executable DEVS simulations.</p>
+              <div class="case-highlights">
+                <span class="highlight-tag">Direct vs Assisted</span>
+                <span class="highlight-tag">ICU & Wet-Lab</span>
+                <span class="highlight-tag">What-if experiments</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</section>
+<!-- End Case Studies -->
 <!-- <section class="hero is-small">
   <div class="hero-body">
     <div class="container">
@@ -612,6 +655,40 @@ python eval_runner.py \
 <!-- You can add a tracker to track page visits by creating an account at statcounter.com -->
 
     <!-- End of Statcounter Code -->
+
+  <!-- Case Studies Modal -->
+  <div id="react-modal" class="modal">
+    <div class="modal-background" onclick="closeReactModal()"></div>
+    <div class="modal-content" style="width: 95vw; max-width: 1400px; height: 90vh; border-radius: 12px; overflow: hidden; background: white;">
+      <iframe id="react-iframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+    </div>
+    <button class="modal-close is-large" aria-label="close" onclick="closeReactModal()"></button>
+  </div>
+
+  <script>
+    function openReactModal(caseHash) {
+      var modal = document.getElementById('react-modal');
+      var iframe = document.getElementById('react-iframe');
+      iframe.src = 'demos/index.html#' + caseHash;
+      modal.classList.add('is-active');
+      document.documentElement.classList.add('is-clipped');
+    }
+
+    function closeReactModal() {
+      var modal = document.getElementById('react-modal');
+      var iframe = document.getElementById('react-iframe');
+      modal.classList.remove('is-active');
+      document.documentElement.classList.remove('is-clipped');
+      iframe.src = '';
+    }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeReactModal();
+      }
+    });
+  </script>
 
   </body>
   </html>
