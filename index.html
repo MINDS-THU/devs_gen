@@ -335,24 +335,6 @@
 </section>
 
 
-<!-- Teaser video-->
-<section class="hero teaser">
-  <div class="container is-max-desktop">
-    <div class="hero-body">
-      <!-- TODO: Replace with your teaser video -->
-      <video poster="" id="tree" autoplay controls muted loop height="100%" preload="metadata">
-        <!-- TODO: Add your video file path here -->
-        <source src="static/videos/banner_video.mp4" type="video/mp4">
-      </video>
-      <!-- TODO: Replace with your video description -->
-      <h2 class="subtitle has-text-centered">
-        Strategic Airlift: Simulates complex logistics managing cargo pallet transport via a fleet of aircraft, featuring active queue reneging and dynamic resource scheduling.
-      </h2>
-    </div>
-  </div>
-</section>
-<!-- End teaser video -->
-
 <!-- Paper abstract -->
 <section class="section hero is-light">
   <div class="container is-max-desktop">
@@ -378,97 +360,188 @@
 <section class="hero is-small">
   <div class="hero-body">
     <div class="container">
+      <h2 class="title is-3 has-text-centered">Methodology</h2>
+      <div class="content has-text-justified mb-5">
+        <p>
+          We propose DEVS-GEN, a two-stage LLM-based generation pipeline that separates structural inference over component interactions from component-level event and timing logic.
+        </p>
+      </div>
       <div id="results-carousel" class="carousel results-carousel">
        <div class="item">
         <!-- TODO: Replace with your research result images -->
-        <img src="static/images/carousel1.jpg" alt="First research result visualization" loading="lazy"/>
+        <img src="static/images/complete_pipeline.png" alt="Complete Pipeline" loading="lazy"/>
         <!-- TODO: Replace with description of this result -->
         <h2 class="subtitle has-text-centered">
-          First image description.
+          Illustrative example of the generation and execution of a discrete-event world model for a warehouse robot fleet restocking task. To facilitate planning, a natural-language specification is translated into a world model, which exposes a standardized execution interface for interventions (e.g., fleet size, dispatching rule, charger count) and emits a structured event trace and performance metrics. We propose to operationalize such a world model as a DEVS model composed of interacting atomic and coupled components, each representing an entity with local state, event-handling logic, and timing semantics. Interactions among entities are realized through event messages routed via component ports, while event timing is governed by component-specific time-advance and transition functions. This enables systematic what-if analysis and comparative evaluation for online planning.
         </h2>
       </div>
       <div class="item">
         <!-- Your image here -->
-        <img src="static/images/carousel2.jpg" alt="Second research result visualization" loading="lazy"/>
+        <img src="static/images/pipeline.pdf" alt="Generation Pipeline" loading="lazy"/>
         <h2 class="subtitle has-text-centered">
-          Second image description.
+          Illustration of DEVS-Gen. A natural-language specification is transformed into a discrete-event world model via a two-stage pipeline; its generated artifacts, including the model hierarchy and event stream, can be used to build visualization frontends for animation and interactive inspection.
         </h2>
       </div>
-      <div class="item">
-        <!-- Your image here -->
-        <img src="static/images/carousel3.jpg" alt="Third research result visualization" loading="lazy"/>
-        <h2 class="subtitle has-text-centered">
-         Third image description.
-       </h2>
-     </div>
-     <div class="item">
-      <!-- Your image here -->
-      <img src="static/images/carousel4.jpg" alt="Fourth research result visualization" loading="lazy"/>
-      <h2 class="subtitle has-text-centered">
-        Fourth image description.
-      </h2>
-    </div>
   </div>
 </div>
 </div>
 </section>
-<!-- End image carousel -->
 
-
-
-
-<!-- Youtube video -->
-<section class="hero is-small is-light">
+<section class="hero is-small">
   <div class="hero-body">
     <div class="container">
-      <!-- Paper video. -->
-      <h2 class="title is-3">Video Presentation</h2>
+      <h2 class="title is-3 has-text-centered">Benchmark Scenarios</h2>
+      <div class="content has-text-justified mb-5">
+        <p>
+          To systematically evaluate our pipeline, we built a comprehensive benchmark comprising 7 distinct scenarios across diverse domains (logistics, networking, service operations, etc.) with varying dynamic characteristics. 
+        </p>
+      </div>
+      <div id="results-carousel" class="carousel results-carousel">
+       <div class="item">
+        <!-- TODO: Replace with your research result images -->
+        <img src="static/images/benchmark_scenarios.png" alt="Benchmark Scenarios" loading="lazy"/>
+        <!-- TODO: Replace with description of this result -->
+        <h2 class="subtitle has-text-centered">
+          Benchmark scenarios summary. The dataset covers diverse domains and dynamic characteristics, ordered by their overall scale. We further quantify complexity through specification length (Words), number of entities (Ents), distinct event types (Evts), and reference code size (Ref. LOC).
+        </h2>
+      </div>
+  </div>
+</div>
+</div>
+</section>
+
+<section class="hero is-small is-light">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Experimental Results</h2>
+      <div class="content has-text-justified mb-5">
+        <p>
+          Our evaluation framework checks for both operational success (executable traces) and behavioral conformance (micro-level states and macro-level causality).
+        </p>
+      </div>
+      <div id="results-carousel" class="carousel results-carousel">
+        
+        <div class="item">
+          <img src="static/images/main_result.png" alt="Main Results Table" loading="lazy"/>
+          <h2 class="subtitle has-text-centered">
+            Main Results on Effectiveness. We group the frameworks into Iterative (utilize execution feedback to debug) and Single-Pass (generate models directly). <strong>Bold</strong> indicates the best performance within each respective group. 
+            DEVS-Gen function best for single-pass generation and achieves performance highly comparable to fully iterative agents.
+          </h2>
+        </div>
+
+        <div class="item">
+          <img src="static/images/tts_cdf_all.pdf" alt="Time to Success" loading="lazy"/>
+          <h2 class="subtitle has-text-centered">
+            Time-to-Success distribution across all evaluated models. The x-axis represents the cumulative success rate, and the y-axis indicates the wall-clock time required to achieve it. While baseline agents show low initial latency, they hit a vertical wall before reaching an 80% success rate due to non-terminating debugging cycles. In contrast, DEVS-Gen translates computation time into continuous task completion, reliably scaling to near 100% success.
+          </h2>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+<!-- End image carousel -->
+
+<section class="section hero is-light">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Quick Start</h2>
+        <div class="content has-text-justified">
+          <p>
+            We provide an open-source implementation of our framework, built upon the <strong>HAMLET</strong> (Hierarchical Agents for Multi-level Learning, Execution & Tasking) architecture, along with our trace-based benchmark suite. Follow the steps below to set up the environment and generate your first DEVS simulation.
+          </p>
+          
+          <h3 class="title is-5 mt-4">1. Environment & Configuration</h3>
+          <pre><code># Clone the repository
+git clone https://github.com/czyarl/devs_gen_code.git
+cd devs_gen_code
+
+# Set up Conda environment
+conda create -n hamlet_env python=3.10 -y
+conda activate hamlet_env
+conda install -c pytorch faiss-cpu pandas pytorch -y
+pip install -r requirements.txt
+
+# Configure API Keys
+cp .env.example .env
+# Open .env and add your OPENROUTER_API_KEY or OPENAI_API_KEY</code></pre>
+
+          <h3 class="title is-5 mt-5">2. Model Generation</h3>
+          <p>You can run the framework in interactive mode via a Gradio UI (<code>python -m devs_app.run</code>) or generate DEVS models directly from benchmark specifications using the CLI:</p>
+          <pre><code># Generate a DEVS model for the Alternating Bit Protocol (ABP)
+python -m devs_app.run \
+  --mode generate \
+  --debug_args_file benchmark/ABP/ABP_D1.yaml \
+  --concur_num 4</code></pre>
+
+          <h3 class="title is-5 mt-5">3. Benchmark Evaluation</h3>
+          <p>To evaluate a generated project's temporal and causal consistency against our benchmark criteria, navigate to the tester suite:</p>
+          <pre><code>cd devs_tester
+
+# Evaluate the generated simulator
+python eval_runner.py \
+  --benchmark ABP \
+  --sim_cwd /tmp/ws/abp_model \
+  --sim_script run.py \
+  --workspace /tmp/results</code></pre>
+          
+          <p class="mt-4">
+            <em>For full instructions on reproducing our baselines (OpenHands, MetaGPT, SWE-agent), please refer to the documentation in our GitHub repository.</em>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Teaser video-->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Simulation Demo: Strategic Airlift</h2>
       <div class="columns is-centered has-text-centered">
         <div class="column is-four-fifths">
-          
           <div class="publication-video">
-            <!-- TODO: Replace with your YouTube video ID -->
-            <iframe src="https://www.youtube.com/embed/JkaxUblCGz0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+            <video poster="" id="sa-video" controls muted loop width="100%" preload="metadata" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+              <source src="static/videos/SA.mp4" type="video/mp4">
+            </video>
+            <h2 class="subtitle has-text-centered mt-4">
+              Visualization of the Strategic Airlift operations. The Godot frontend is driven entirely by the backend event traces emitted from the LLM-generated DEVS simulator in real-time.
+            </h2>
           </div>
         </div>
       </div>
     </div>
   </div>
 </section>
-<!-- End youtube video -->
-
+<!-- End teaser video -->
 
 <!-- Video carousel -->
-<section class="hero is-small">
+<!-- <section class="hero is-small">
   <div class="hero-body">
     <div class="container">
       <h2 class="title is-3">Another Carousel</h2>
       <div id="results-carousel" class="carousel results-carousel">
         <div class="item item-video1">
-          <!-- TODO: Add poster image for better preview -->
           <video poster="" id="video1" controls muted loop height="100%" preload="metadata">
-            <!-- Your video file here -->
             <source src="static/videos/carousel1.mp4" type="video/mp4">
           </video>
         </div>
         <div class="item item-video2">
-          <!-- TODO: Add poster image for better preview -->
           <video poster="" id="video2" controls muted loop height="100%" preload="metadata">
-            <!-- Your video file here -->
             <source src="static/videos/carousel2.mp4" type="video/mp4">
           </video>
         </div>
         <div class="item item-video3">
-          <!-- TODO: Add poster image for better preview -->
           <video poster="" id="video3" controls muted loop height="100%" preload="metadata">
-            <!-- Your video file here -->
             <source src="static/videos/carousel3.mp4" type="video/mp4">
           </video>
         </div>
       </div>
     </div>
   </div>
-</section>
+</section> -->
 <!-- End video carousel -->
 
 
@@ -503,12 +576,14 @@
           <span class="copy-text">Copy</span>
         </button>
       </div>
-      <pre id="bibtex-code"><code>@article{YourPaperKey2024,
-  title={Your Paper Title Here},
-  author={First Author and Second Author and Third Author},
-  journal={Conference/Journal Name},
-  year={2024},
-  url={https://your-domain.com/your-project-page}
+      <pre id="bibtex-code"><code>@misc{chen2026specificationdrivengenerationevaluationdiscreteevent,
+      title={Specification-Driven Generation and Evaluation of Discrete-Event World Models via the DEVS Formalism}, 
+      author={Zheyu Chen and Huiteng Zhuang and Zhuohuan Li and Chuanhao Li},
+      year={2026},
+      eprint={2603.03784},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2603.03784}, 
 }</code></pre>
     </div>
 </section>
