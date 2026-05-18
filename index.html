@@ -563,22 +563,26 @@
           </p>
         </div>
       </div>
-      <div class="result-layout">
-        <div class="figure-card">
-          <img src="static/images/main_result.png" alt="Main benchmark results" loading="lazy"/>
-          <p class="figure-caption">
-            The main result compares DEVS-Gen against iterative software-agent baselines on the same benchmark, using both operational success and behavioral correctness.
-          </p>
+      <div class="columns result-layout is-variable is-4">
+        <div class="column is-7">
+          <div class="figure-card">
+            <img src="static/images/main_result.png" alt="Main benchmark results" loading="lazy"/>
+            <p class="figure-caption">
+              The main result compares DEVS-Gen against iterative software-agent baselines on the same benchmark, using both operational success and behavioral correctness.
+            </p>
+          </div>
         </div>
-        <article class="insight-card">
-          <h3>Key Results</h3>
-          <ul class="compact-list">
-            <li>DEVS-Gen performs competitively with fully iterative software agents on both operational and behavioral metrics, despite using a more structured generation pipeline.</li>
-            <li>With GLM-4.7, it reaches 0.95 on Score<sub>ope</sub> and 0.75 on Score<sub>beh</sub> without relying on repeated code-execution repair loops.</li>
-            <li>The main advantage is predictability: explicit structure planning breaks a brittle multi-file synthesis problem into smaller, localized generation steps.</li>
-            <!-- <li>In the ablation study, parallel synthesis gives about a 4.7x wall-clock speedup for component generation.</li> -->
-          </ul>
-        </article>
+        <div class="column is-5">
+          <article class="insight-card">
+            <h3>Key Results</h3>
+            <ul class="compact-list">
+              <li>DEVS-Gen performs competitively with fully iterative software agents on both operational and behavioral metrics, despite using a more structured generation pipeline.</li>
+              <li>With GLM-4.7, it reaches 0.95 on Score<sub>ope</sub> and 0.75 on Score<sub>beh</sub> without relying on repeated code-execution repair loops.</li>
+              <li>The main advantage is predictability: explicit structure planning breaks a brittle multi-file synthesis problem into smaller, localized generation steps.</li>
+              <!-- <li>In the ablation study, parallel synthesis gives about a 4.7x wall-clock speedup for component generation.</li> -->
+            </ul>
+          </article>
+        </div>
       </div>
       <div class="figure-card figure-card--compact experiment-followup mt-5">
         <img src="static/images/tts_cdf_all.png" alt="Time-to-success comparison" loading="lazy"/>

@@ -553,11 +553,20 @@ body {
 }
 
 .result-layout {
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.95fr);
+  display: flex;
+  margin-top: 1.5rem;
+  margin-bottom: 0;
   align-items: stretch;
 }
 
-.result-layout > * {
+.result-layout > .column {
+  display: flex;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.result-layout > .column > * {
+  width: 100%;
   height: 100%;
 }
 
@@ -577,7 +586,7 @@ body {
 
 @media screen and (max-width: 768px) {
   .result-layout {
-    grid-template-columns: 1fr;
+    display: block;
   }
 
   .planning-showcase {
