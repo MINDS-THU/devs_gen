@@ -1,0 +1,109 @@
+\section{Trace-Based Evaluation of World Models} \label{sec:method_evaluation}
+
+% [Intro: 简述本节目标]
+
+The world model synthesis task requires an agent to generate a valid simulator $\cM$ from a \spec. To evaluate this capability, we design a benchmark grounded in \emph{trace-based conformance}: whether the emitted event traces $\cT$ satisfy the dynamic, temporal, and causal constraints derived from the \spec. This yields a fine-grained, implementation-agnostic measure of simulator correctness.
+
+
+% ----------------------------------------------------------------
+% 5.1 先讲评测标准：定义什么是“对”，什么是“规则”
+% ----------------------------------------------------------------
+\subsection{Trace-Based Evaluation Criteria}
+\label{sec:eval_framework}
+
+Our benchmark evaluates the generated simulator $\cM$ against the two dimensions of $\spec = (\spec_{\mathrm{ope}},\spec_{\mathrm{beh}})$. Concretely, we translate $\spec_{\mathrm{ope}}$ and $\spec_{\mathrm{beh}}$ into executable testing rules.
+
+\noindent\textbf{Operational Success.}
+The simulator must execute without runtime errors and adhere to the I/O contract, accepting interventions $\mathcal{I}$ and emitting structured traces $\mathcal{T}$ in the prescribed schema.
+
+\noindent\textbf{Behavioral Conformance.}
+For simulators that achieve operational success, we further evaluate whether their observable behavior conforms to $\spec_{\mathrm{beh}}$. We implement rules at two granularities:
+(i)\emph{Micro-level consistency}: checks on the state evolution of individual components. For example, in a queueing system, a rule verifies whether service times and waiting intervals follow the timing logic in the behavioral description.
+(ii)\emph{Macro-level causality}: checks on causal and temporal relationships across interacting components. These rules detect failures such as events occurring without proper coupling, effects appearing before causes, or deviations from prescribed statistical behavior in stochastic settings.
+
+
+% \begin{table}[h]
+% \centering
+% \caption{Benchmark scenarios summary. The dataset covers diverse domains and dynamic characteristics, ordered by their overall scale. We further quantify complexity through specification length (Words), number of entities (Ents), distinct event types (Evts), and reference code size (Ref. LOC).}
+% \label{tab:scenarios_compact}
+% \begin{small}
+% \setlength{\tabcolsep}{4.5pt}
+% \begin{tabular}{@{}lllccccc@{}}
+% \toprule
+% \textbf{Scenario} & \textbf{Domain} & \textbf{Key Dynamics} & \textbf{Words} & \textbf{Ents} & \textbf{Evts} & \textbf{Ref. LOC} & \textbf{Scale} \\ \midrule
+% SEIRD         & Bio-Math  & Continuous (ODE)    & 507 & 5 & 1 & 745 & S \\
+% ABP           & Network   & Stop-and-Wait       & 854 & 4 & 5 & 573 & S \\
+% Barbershop    & Service   & Blocking \& Signals & 700 & 3 & 2 & 570 & S \\ 
+% \addlinespace[3pt]
+% IOBS          & Banking   & Pipeline w/ Routing & 822 & 6 & 7 & 703 & M \\
+% OTrain        & Transport & Schedule-driven     & 755 & 4 & 4 & 961 & M \\ 
+% \addlinespace[3pt]
+% FileTransfer  & Network   & Dual-Loop FSM       & 750 & 8 & 12& 937 & L \\
+% StratAirlift  & Logistics & Active Reneging     & 966 & 5 & 9 & 1476& L \\ \bottomrule
+% \end{tabular}
+% \end{small}
+% \vspace{-10pt}
+% \end{table}
+
+% ----------------------------------------------------------------
+% 5.2 再讲数据集：说明数据是如何构建来满足上述标准的
+% ----------------------------------------------------------------
+\subsection{Dataset Construction and Composition}
+\label{sec:dataset}
+
+
+To evaluate these criteria systematically, we construct a curated benchmark dataset. More details about the dataset are provided in App.~\ref{app:scenarios}.
+Rather than inventing rules by hand, we select high-quality open-source DEVS models from diverse domains, such as network protocols and industrial supply chains. We transcribe their core dynamics into the natural-language behavioral descriptions $\spec_{\mathrm{beh}}$, design the corresponding $\spec_{\mathrm{ope}}$ and checker scripts. Crucially, we enforce a highly strict specification regime to isolate pure code synthesis capability from requirement elicitation, preventing loose constraints from artificially inflating validation scores.
+
+\noindent\textbf{Data Assets.}
+Each benchmark scenario is a self-contained evaluation package containing:
+(i) Target \spec: the input to the generation pipeline, partitioned into $\spec_{\mathrm{ope}}$ and $\spec_{\mathrm{beh}}$; (ii) Test suite (multiple $\cI$): a set of inputs designed to trigger specific causal dependencies and stress-test the generated simulator under varying conditions; (iii) Checker Scripts: checkers that compute the operational and behavioral scores.
+
+\noindent\textbf{Dataset Composition.} 
+Table~\ref{tab:scenarios_compact} summarizes the benchmark scenarios. The dataset is stratified along two axes. First, by \emph{domain semantics}, it covers service operations, network protocols, and physical dynamics. Second, by \emph{dynamic features}, it spans stochastic queueing, schedule-driven delays, continuous dynamics via ODE approximations, and complex nested state machines.
+
+\begin{table}[h]
+\centering
+\caption{Benchmark scenarios summary. The dataset covers diverse domains and dynamic characteristics, ordered by their overall scale. We further quantify complexity through specification length (Words), number of entities (Ents), distinct event types (Evts), and reference code size (Ref. LOC).}
+\label{tab:scenarios_compact}
+% \setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{lllccccc}
+\toprule
+\textbf{Scenario} & \textbf{Domain} & \textbf{Key Dynamics} & \textbf{Words} & \textbf{Ents} & \textbf{Evts} & \textbf{Ref. LOC} & \textbf{Scale} \\ \midrule
+SEIRD         & Bio-Math  & Continuous (ODE)    & 507 & 5 & 1 & 745 & S \\
+ABP           & Network   & Stop-and-Wait       & 854 & 4 & 5 & 573 & S \\
+Barbershop    & Service   & Blocking \& Signals & 700 & 3 & 2 & 570 & S \\ 
+\addlinespace[3pt]
+IOBS          & Banking   & Pipeline w/ Routing & 822 & 6 & 7 & 703 & M \\
+OTrain        & Transport & Schedule-driven     & 755 & 4 & 4 & 961 & M \\ 
+\addlinespace[3pt]
+FileTransfer  & Network   & Dual-Loop FSM       & 750 & 8 & 12& 937 & L \\
+StratAirlift  & Logistics & Active Reneging     & 966 & 5 & 9 & 1476& L \\ \bottomrule
+\end{tabular}
+\end{table}
+
+% \noindent\textbf{Specification Strictness and Evaluation Rigor.} 
+% While real-world user prompts are often underspecified, evaluating synthesis under loose specifications is methodologically flawed: it conflates the model's \emph{requirement elicitation} capability with its \emph{code synthesis} capability, and looser constraints inherently make behavioral validation easier to pass. Therefore, our benchmark intentionally enforces a highly specified regime for $\mathcal{S}_{\text{ope}}$ and $\mathcal{S}_{\text{beh}}$. By imposing strict schemas and rich behavioral obligations, we force models to manage complex structural routing and localized logic simultaneously, providing a highly discriminative test of pure synthesis capability.
+
+% ----------------------------------------------------------------
+% 5.3 最后讲量化指标：公式化
+% ----------------------------------------------------------------
+\subsection{Metrics and Experimental Protocol}
+\label{sec:metrics}
+
+To assess the quality of a simulator $\cM$ for a scenario, we evaluate it on a test suite $\cD$ consisting of $N$ test cases $\{d_1, d_2, \dots, d_N\}$. Each test case $d_i$ provides a specific input $\cI_i$ to the simulator, resulting in an emitted event trace $\cT_i = \cM(\cI_i)$. We summarize performance with two metrics.
+
+\noindent\textbf{Operational Score ($\mathrm{Score}_{\mathrm{ope}}$).}
+This metric quantifies adherence to $\spec_{\mathrm{ope}}$. For each test case $i$, we define a binary validity indicator $v_i \in \{0, 1\}$:
+$v_i = \mathbb{I}(\text{ExitCode}=0) \cdot \mathbb{I}(\text{NoTimeout}) \cdot \mathbb{I}(\text{ValidSchema}(\cT_i))$
+, i.e., $v_i = 1$ if and only if the simulator executes without runtime errors and emits an event trace that conforms to the schema. The operational score $\text{Score}_{\mathrm{ope}} = \frac{1}{N} \sum_{i=1}^{N} v_i$.
+
+\noindent\textbf{Behavioral Score ($\mathrm{Score}_{\mathrm{beh}}$).}
+This metric evaluates fidelity to $\spec_{\mathrm{beh}}$. Let $\cR_{\mathrm{micro}}$ denote the set of micro-level consistency rules and $\cR_{\mathrm{macro}}$ the set of macro-level causality rules. To balance these two granularities, we compute a macro-average of their pass rates. Each rule $r$ is a binary evaluation function: $r(\cT)=1$ if trace $\cT$ satisfies the checked constraint, and 0 otherwise.
+
+For a given test case $i$, the behavioral conformance score $c_i$ is calculated as:
+\begin{equation}
+    c_i = 
+    \frac{1}{2} v_i \left( \underbrace{\frac{\sum_{r \in \cR_{\mathrm{micro}}} r(\cT_i)}{|\cR_{\mathrm{micro}}|}}_{\text{Micro-level Consistency}} + \underbrace{\frac{\sum_{r \in \cR_{\mathrm{macro}}} r(\cT_i)}{|\cR_{\mathrm{macro}}|}}_{\text{Macro-level Causality}} \right)
+\end{equation}
+Note the calculation includes $v_i$, which means if the simulator fails operationally, its behavioral score is 0. The behavioral score is $\text{Score}_{\mathrm{beh}} = \frac{1}{N} \sum_{i=1}^{N} c_i$.

@@ -40,3 +40,27 @@ code, pre, .font-mono {
   background: #f1f5f9 !important;
   border-radius: 8px !important;
 }
+
+/* Remove the benchmark/workflow tab strip while keeping the active summary text. */
+#root > div > section:first-child > p:first-child,
+#root > div > section:first-child > div.grid:first-of-type {
+  display: none !important;
+}
+
+/* Flatten the benchmark deep-dive layout by removing the left guidance rail. */
+#root > div [class*="lg:grid-cols-[170px_minmax(0,1fr)]"] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+#root > div [class*="lg:grid-cols-[170px_minmax(0,1fr)]"] > div:first-child {
+  display: none !important;
+}
+
+/* Remove the workflow sidebar navigation if the workflow view is opened directly. */
+#root > div [class*="lg:grid-cols-[150px_minmax(0,1fr)]"] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+#root > div [class*="lg:grid-cols-[150px_minmax(0,1fr)]"] > aside {
+  display: none !important;
+}

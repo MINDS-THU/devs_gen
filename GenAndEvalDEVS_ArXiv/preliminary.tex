@@ -1,0 +1,49 @@
+
+\section{Discrete-Event World Models and DEVS}\label{sec:preliminary}
+In this section, we formalize the class of discrete-event world models studied in this paper and then introduce DEVS as the operational representation we use to instantiate them. Our goal is to characterize (i) the scope of environments we target, (ii) the input-output interface exposed by an executable world model, and (iii) why DEVS is a suitable representation for this setting.
+
+\subsection{Problem Setup}
+We study the synthesis of \emph{executable discrete-event world models} directly from \emph{natural-language specifications}. These specifications informally describe the environment's interacting entities, permissible discrete events, and their causal or temporal relationships (see App.~\ref{app:artifacts_input} for an example specification). Figure~\ref{fig:complete_pipeline} illustrates this pipeline using a warehouse robot restocking task, where the input text describes entities such as robots and chargers together with events such as task assignment and charging. Although the figure illustrates how the pipeline can be integrated into an agent's reasoning loop to facilitate online planning, it can also be used offline to construct a standalone environment.
+
+The \emph{discrete-event world} abstraction targets environments whose decision-relevant behavior is driven by event timing, resource constraints, and multi-entity interaction rather than fine-grained continuous physics. This includes settings such as service operations, supply chains, business processes, and distributed workflows, where agents must reason about queues, delays, synchronization, and shared resources.
+Related formalisms can encode some aspects of these settings, but they organize them around different primary abstractions. MDP-style models foreground state, action, and reward for sequential decision making, while PDDL-based representations emphasize symbolic action preconditions, effects, and goal satisfaction \cite{hu2025text2world,zhang2024open_domain_planning_repr,oswald2024llm_planning_domain_generators,mahdavi2024pddl_interaction}. In contrast, we focus on \emph{executable simulators} with explicit temporal semantics. This is important for environments with asynchronous exogenous events, overlapping activities, and contention for shared resources, such as jobs waiting for a server or robots competing for chargers. These patterns are natural in discrete-event models but require substantial extra encoding in MDP or PDDL formulations. We therefore adopt a discrete-event perspective centered on event timing, component interaction, and observable trajectories.
+
+\textbf{Discrete-Event World.}
+A discrete-event world is an environment where the state changes only at isolated event times, while remaining constant between these events. 
+In the warehouse example, the world state includes, for instance, the contents of the order queue, the locations and battery levels of robots, and inventory levels. State changes occur only when events such as an order arrival, a robot completing a task, or a charging operation finishing take place. 
+Formally, a discrete-event world is represented as $\cW = (\cE, \cS, \Omega, \cP, \delta)$. $\cE$ is a finite set of entities encompassing elements like order queues, robots, and inventory. The world state space is denoted by $\cS = \prod_{e \in \cE} \cS_e$, where $\cS_e$ is the local state space of an individual entity $e$. The event alphabet $\Omega$ specifies the available event types, and $\cP$ defines the payload space that captures event-specific data, e.g., order IDs or robot identifiers.
+
+An event instance \(u=(\ell,p)\in \cU\) represents the occurrence of an event, e.g., a specific robot completing a designated task, where \(\cU := \Omega \times \cP\) is the space of all such instances.
+The transition function \(\delta: \cS \times (\cU \cup \{\varnothing\}) \times \mathbb{R}_{\geq 0} \rightarrow \cS\) defines the system dynamics: given a state \(s \in \cS\), an event instance $u$ or $\varnothing$, and a nonnegative time increment \(t \in \mathbb{R}_{\geq 0}\), it returns the resulting state \(\delta(s,\varnothing,t)\) or \(\delta(s,u,t)\). The former represents state evolution driven solely by time, while transitions associated with \(u\) capture interactions among entities, e.g., a dispatcher assigning a task to a robot.
+
+
+\textbf{World Models as Simulators.}
+While $\cW$ defines the abstract rules of the environment, an autonomous agent requires a concrete, interactable software artifact. Therefore, in our framework, an executable discrete-event world model is realized as a simulator, denoted as $\cM$. It instantiates a concrete interpretation of the world $\cW$, operationalizes its event dynamics, and serves as a predictive substrate for downstream tasks as depicted on the left side of Figure~\ref{fig:complete_pipeline}.
+The simulator is treated as a black-box executable with a fixed input--output interface specification. External interventions are drawn from a set $\cA$ and provided as configuration arguments
+\[
+\cI = (a_1,a_2,\ldots,a_m), \qquad a_k \in \cA,
+\]
+which parameterize execution at launch. In the warehouse example, these interventions include the number of robots, the choice of dispatching policy, the number of chargers, and the simulation horizon. Some tasks additionally provide an optional input stream $\cJ$ specifying exogenous inputs delivered during execution. We treat the overall external input to the simulator as the pair $(\cI,\cJ)$.
+Executing $\cM(\cI,\cJ)$ produces observable behavior in the form of an event trace $\cT = (r_1, r_2, \ldots)$ with each record $r = (t, e, \ell, p) \in \mathbb{R}_{\ge 0} \times \cE \times \Omega \times \cP$ being a time-stamped output,
+This could correspond to an order arrival or a robot completing a charging operation at time $t$.
+
+\textbf{World Model Synthesis Task.}
+% The task is to generate the simulator $\cM$ from a natural-language specification \spec{}. \spec{} encompasses two dimensions: (1) \emph{Operational configurations} \spec$_{\mathrm{ope}}$ that define the interaction boundaries $(\cI,\cJ)$ and the structured trace format $\cT$; and (2) \emph{Behavioral descriptions} \spec$_{\mathrm{beh}}$ that outline the function. 
+% While real-world applications often feature informal or underspecified requirements, in principle we can formalize \spec{} to support arbitrary levels of strictness, enabling both flexible real-world deployment and rigorous, schema-driven evaluation.
+The task is to generate a simulator $\cM$ from a possibly under-specified \spec{} of a discrete-event world $\cW$.
+\spec{} encompasses two dimensions: (1) Operational configurations \spec$_{\mathrm{ope}}$ that define the interaction boundaries $(\cI,\cJ)$ and the structured trace format $\cT$; and (2) Behavioral descriptions \spec$_{\mathrm{beh}}$ that specify the causal and temporal dynamics of $\cW$ in natural language.
+The strictness of \spec{} depends on the application context. Real-world applications often feature informal or partially implicit \spec{}, allowing the synthesis pipeline to infer reasonable simulation defaults. In contrast, for automated benchmarking, we adopt a highly specified regime in which $\cI$, $\cJ$, and $\cT$ are governed by a strict schema. This makes the benchmark more challenging and meaningful: a looser \spec{} imposes fewer constraints on the generated simulator $\cM$ and thus makes validation easier, whereas a stricter \spec{} yields richer behavioral obligations and more discriminative checks. Our framework is flexible enough for diverse real-world uses while supporting rigorous, automated evaluation under controlled benchmark conditions.
+
+
+
+\subsection{DEVS as an Operational Representation}
+\label{sec:devs_representation}
+
+The discrete-event world abstraction above does not commit us to one implementation formalism. In principle, such environments could be realized using other executable representations, including domain-specific simulators, Petri nets, queueing networks, or other explicit state-transition models. We choose Parallel DEVS (PDEVS) \cite{RiscoMartin2023xDEVS} because it provides a modular and hierarchical executable semantics for the event timing and concurrent interactions, together with a clean separation between local component behavior and global interaction structur. The formal definition of PDEVS is provided in App.~\ref{app:devs_formalism}. For brevity, we refer to PDEVS simply as DEVS throughout the remainder of the paper.
+Concretely, DEVS realizes this modular structure through two fundamental component types:
+
+\textbf{Atomic Models (Behavioral Logic).} Atomic models encapsulate the local state, timing semantics, and event-handling rules of individual entities, e.g., robots or order queues. They autonomously update local state and emit events in response to elapsed simulated time or incoming events.
+
+\textbf{Coupled Models (Structural Routing).} Coupled models define the system architecture by composing sub-components and specifying how events are routed among their input and output ports. They carry no local state or behavioral logic; instead, they make the communication structure explicit.
+
+By recursively assembling these components, a hierarchical world model $\cM$ is formed. Complex macro-level dynamics, e.g., a dispatcher assigning tasks to multiple robots, emerge from standardized event passing across this explicitly defined topology. In the next section, we leverage this structure to separate global planning of component interactions from local synthesis of component behavior.

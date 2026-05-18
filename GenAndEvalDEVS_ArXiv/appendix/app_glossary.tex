@@ -1,0 +1,66 @@
+\section{Glossary of Key Terms}
+\label{app:glossary}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.24\linewidth}
+                  >{\raggedright\arraybackslash}p{0.70\linewidth}@{}}
+\toprule
+\textbf{Term} & \textbf{Definition} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Term} & \textbf{Definition} \\
+\midrule
+\endhead
+
+\bottomrule
+\endfoot
+
+\glossarysection{Core Concepts}
+
+\textbf{World Model} &
+The functional and conceptual predictive engine used by an autonomous agent to forecast the consequences of its actions and simulate environment dynamics over time. In this work, it specifically refers to models targeting discrete-event environments for long-horizon what-if reasoning. \\
+
+\addlinespace[4pt]
+\textbf{Simulator} ($\cM$) &
+The concrete, executable software artifact (e.g., Python code) that operationalizes the world model. It acts as a black-box engine that accepts external interventions as inputs and emits observable event traces as outputs. \\
+
+\addlinespace[4pt]
+\textbf{Event Trace} ($\cT$) &
+A chronological, structured sequence of discrete events emitted by the simulator during execution. Each record captures the timestamp, emitting entity, event type, and payload, serving as the observable behavior for specification-driven evaluation. \\
+
+\addlinespace[4pt]
+\textbf{Environment Specification} (\spec) &
+The natural-language description guiding the simulator generation, partitioned into operational configurations ($\spec_{ope}$) and behavioral descriptions ($\spec_{beh}$). \\
+
+\glossarysection{DEVS Formalism}
+
+\textbf{DEVS Model} &
+The specific mathematical and structural representation of the environment constructed using the Discrete Event System Specification (DEVS) formalism. It serves as the underlying architecture for the executable simulator. \\
+
+\addlinespace[4pt]
+\textbf{Atomic Model} &
+A fundamental, indivisible DEVS component that maintains explicit internal state and dictates state-transition and timing logic (i.e., how the state evolves over time or in response to events). It contains no sub-components. \\
+
+\addlinespace[4pt]
+\textbf{Coupled Model} &
+A structural DEVS component that encapsulates multiple sub-components (which can be Atomic or other Coupled models). It contains no behavioral logic of its own, but defines the exact event routing (coupling) between the ports of its children and its own external interface. \\
+
+\addlinespace[4pt]
+\textbf{Port} &
+The explicit, typed communication interfaces through which DEVS components exchange discrete events, enforcing strict modular isolation. \\
+
+\glossarysection{Pipeline Artifacts}
+
+\textbf{\plantree} &
+The hierarchical intermediate data structure generated during the structural planning stage (Stage 1). It defines the entire system's architectural topology, capturing the component hierarchy and event routing graph. \\
+
+\addlinespace[4pt]
+\textbf{\modelplan} &
+A strict interface contract and functional specification encapsulated within a specific node of the PlanTree. It dictates a component's model type, input/output port schemas, and expected behavioral logic, guiding the independent synthesis of that component in Stage 2. \\
+
+\addlinespace[4pt]
+\textbf{\texttt{skeleton}} &
+The initial, high-level blueprint inferred from the natural-language specification, outlining the basic module names, their parent-child relationships, and a brief description of their responsibilities before detailed routing is assigned. \\
+
+\end{longtable}

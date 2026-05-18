@@ -1,0 +1,310 @@
+\documentclass{article}
+
+
+\usepackage{PRIMEarxiv}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{lipsum}
+\usepackage{fancyhdr}       % header
+\usepackage{graphicx}       % graphics
+\graphicspath{{media/}}     % organize your images and other figures under media/ folder
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{amsthm}
+%Header
+\pagestyle{fancy}
+\thispagestyle{empty}
+
+% Update your Headers here
+\fancyhead[LO]{Generation and Evaluation of Discrete-Event World Models via the DEVS Formalism}
+% \fancyhead[RE]{Firstauthor and Secondauthor} % Firstauthor et al. if more than 2 - must use \documentclass[twoside]{article}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{microtype}
+\usepackage{graphicx}
+% \usepackage{subcaption}
+\usepackage{booktabs}
+
+
+\usepackage{xspace}
+
+\newcommand{\chuanhao}[1]{\textcolor{red}{[Chuanhao]: #1}}
+\newcommand{\zheyu}[1]{\textcolor{blue}{[Zheyu]: #1}}
+\usepackage{enumitem}
+\def \cU {\mathcal{U}}
+\def \cD {\mathcal{D}}
+\def \cN {\mathcal{N}}
+\def \bU {\mathbb{U}}
+\def \bO {\mathbb{O}}
+\def \bM {\mathbb{M}}
+\def \bH {\mathbb{H}}
+\def \cH {\mathcal{H}}
+\def \cF {\mathcal{F}}
+\def \bA {\mathbf{A}}
+\def \bx {\mathbf{x}}
+\def \bX {\mathbf{X}}
+\def \bY {\mathbf{Y}}
+\def \by {\mathbf{y}}
+\def \cX {\mathcal{X}}
+\def \cW {\mathcal{W}}
+\def \cM {\mathcal{M}}
+\def \cE {\mathcal{E}}
+\def \cP {\mathcal{P}}
+\def \cT {\mathcal{T}}
+\def \cS {\mathcal{S}}
+\def \cA {\mathcal{A}}
+\def \cI {\mathcal{I}}
+\def \cJ {\mathcal{J}}
+\def \cR {\mathcal{R}}
+\def \bb {\mathbf{b}}
+\def \bp {\mathbf{p}}
+\def \bI {\mathbf{I}}
+\def \bR {\mathbb{R}}
+\def \bE {\mathbb{E}}
+\def \bbE {\mathbf{E}}
+\def \cE {\mathcal{E}}
+\def \cS {\mathcal{S}}
+
+% if you use cleveref..
+\usepackage[capitalize,noabbrev]{cleveref}
+
+% Code & Prompt display
+
+\usepackage{upquote} % fix the ' and `, prevent them to be replaced by ‘
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{listings}
+% 定义 Python 代码高亮样式
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{pythonstyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=3pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=pythonstyle}
+
+% 定义 Prompt 展示框样式
+\newtcblisting{promptbox}[1][]{
+  enhanced,
+  title={#1},
+  colback=white,
+  colframe=gray,
+  coltitle=black,
+  fonttitle=\bfseries,
+  attach boxed title to top left={yshift=-2mm, xshift=2mm},
+  boxed title style={colback=gray!20, colframe=gray},
+  sharp corners,
+  boxrule=0.5pt,
+  left=2mm, right=2mm, top=2mm, bottom=2mm,
+  listing only,                      % 声明这是一个代码列表盒子
+  % listing options={style=prompttextstyle}, % 应用上面定义的换行样式
+  breakable                          % 允许盒子跨页（如果 Prompt 特别长）
+}
+
+\colorlet{punct}{red!60!black}
+\definecolor{delim}{RGB}{20,105,176}
+\colorlet{numb}{magenta}
+
+\lstdefinelanguage{json}{
+    basicstyle=\normalfont\ttfamily\footnotesize,
+    numbers=left,
+    numberstyle=\tiny\color{codegray},
+    stepnumber=1,
+    numbersep=3pt,
+    showstringspaces=false,
+    breaklines=true,
+    frame=lines,
+    backgroundcolor=\color{backcolour},
+    literate=
+     *{0}{{{\color{numb}0}}}{1}
+      {1}{{{\color{numb}1}}}{1}
+      {2}{{{\color{numb}2}}}{1}
+      {3}{{{\color{numb}3}}}{1}
+      {4}{{{\color{numb}4}}}{1}
+      {5}{{{\color{numb}5}}}{1}
+      {6}{{{\color{numb}6}}}{1}
+      {7}{{{\color{numb}7}}}{1}
+      {8}{{{\color{numb}8}}}{1}
+      {9}{{{\color{numb}9}}}{1}
+      {:}{{{\color{punct}{:}}}}{1}
+      {,}{{{\color{punct}{,}}}}{1}
+      {\{}{{{\color{delim}{\{}}}}{1}
+      {\}}{{{\color{delim}{\}}}}}{1}
+      {[}{{{\color{delim}{[}}}}{1}
+      {]}{{{\color{delim}{]}}}}{1},
+}
+
+\usepackage{forest}
+\usepackage{multirow}
+\usepackage[table,xcdraw]{xcolor} % 用于表格颜色
+\definecolor{graybg}{gray}{0.95}  % 定义浅灰色
+\newcommand{\methodname}{\textsc{DEVS-Gen}\xspace}
+\newcommand{\spec}{{\texttt{Spec}\xspace}}
+\newcommand{\plantree}{{\texttt{PlanTree}\xspace}}
+\newcommand{\modelplan}{{\texttt{ModelPlan}\xspace}}
+
+\definecolor{coupledcolor}{RGB}{230, 240, 255}
+\definecolor{atomiccolor}{RGB}{255, 240, 230}
+\definecolor{bordercolor}{RGB}{100, 100, 100}
+% \newcommand{\FUNCTION}[2]{\STATE \textbf{Function} \textsc{#1}(#2) \begin{algorithmic}[1] \item[]}
+% \newcommand{\ENDFUNCTION}{\end{algorithmic} \STATE \textbf{End Function}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% THEOREMS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{assumption}[theorem]{Assumption}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% Todonotes is useful during development; simply uncomment the next line
+%    and comment out the line below the next line to turn off comments
+%\usepackage[disable,textsize=tiny]{todonotes}
+\usepackage[textsize=tiny]{todonotes}
+
+% Preamble
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage[table]{xcolor}
+\usepackage{array}
+
+\newcommand{\glossarysection}[1]{%
+    \addlinespace[4pt]
+    \rowcolor{gray!12}
+    \multicolumn{2}{@{}p{\dimexpr\linewidth-2\tabcolsep\relax}@{}}{%
+        \textbf{\scshape #1}%
+    }\\
+    \addlinespace[3pt]
+}
+
+%% Title
+\title{Specification-Driven Generation and Evaluation of Discrete-Event World Models via the DEVS Formalism}
+%%%% Cite as
+%%%% Update your official citation here when published 
+% \thanks{\textit{\underline{Citation}}: 
+% \textbf{Authors. Title. Pages.... DOI:000000/11111.}} 
+% }
+
+% \author{
+%   Zheyu Chen \\
+%   Zhili College \\
+%   Tsinghua University \\
+%   % City\\
+%   \texttt{chenzhey22@mails.tsinghua.edu.cn}\\
+%   %% examples of more authors
+%    \And
+%   Zhuohuan Li \\
+%   Department of Industrial Engineering \\
+%   Tsinghua University \\
+%   % City\\
+%   \texttt{lizhuohu23@mails.tsinghua.edu.cn}\\
+%   %% examples of more authors
+%    \And
+%   Chuanhao Li \\
+%   Department of Industrial Engineering \\
+%   Tsinghua University \\
+%   % City\\
+%   \texttt{chuanhao-li@tsinghua.edu.cn} 
+%   %% \AND
+%   %% Coauthor \\
+%   %% Affiliation \\
+%   %% Address \\
+%   %% \texttt{email} \\
+%   %% \And
+%   %% Coauthor \\
+%   %% Affiliation \\
+%   %% Address \\
+%   %% \texttt{email} \\
+%   %% \And
+%   %% Coauthor \\
+%   %% Affiliation \\
+%   %% Address \\
+%   %% \texttt{email} \\
+% }
+
+
+\author{
+Zheyu Chen$^{1}$ \quad
+Huiteng Zhuang$^{2}$ \quad
+Zhuohuan Li$^{3}$ \quad
+Chuanhao Li$^{3}$\thanks{Corresponding author: \texttt{chuanhao-li@tsinghua.edu.cn}} \\
+\\
+$^{1}$Zhili College, Tsinghua University \\
+$^{2}$School of Transportation Science and Engineering, Beihang University \\
+$^{3}$Department of Industrial Engineering, Tsinghua University
+% \texttt{\{chenzhey22,lizhuohu23\}@mails.tsinghua.edu.cn, 24377039@buaa.edu.cn,\\chuanhao-li@tsinghua.edu.cn}
+}
+\begin{document}
+\maketitle
+
+
+\begin{abstract}
+World models are central to LLM agents that must evaluate actions over long horizons. Yet much existing work focuses on environments governed by physical dynamics or spatial structure, whereas many high-impact domains, including supply chains, procurement networks, and business processes, evolve through discrete events, timing constraints, and causal dependencies. These settings call for discrete-event world models.
+Existing approaches to constructing world models often fall near two extremes: hand-engineered simulators provide consistency and reproducibility, but are costly to build and adapt; neural models are flexible, but can suffer from compounding inconsistency over long-horizon rollouts. We seek a principled middle ground by synthesizing discrete-event world models online from natural-language specifications, retaining the reliability of explicit simulators while gaining the adaptability of neural models.
+We adopt the DEVS formalism and introduce a staged LLM-based generation pipeline that separates structural inference over component interactions from component-level event and timing logic. For evaluation, we develop benchmark suites in which simulators emit structured event traces, which are then validated against specification-derived temporal, causal, and semantic constraints. This enables reproducible verification and localized diagnostics. Together, these contributions produce world models that remain consistent over long-horizon rollouts, can be verified from observable behavior, and can be synthesized efficiently on demand during online execution.
+% Our code and generated benchmark datasets are available at \url{https://anonymous.4open.science/r/DEVS-Gen-2026-nips}.
+\end{abstract}
+
+
+% keywords can be removed
+% \keywords{World Modeling \and LLM Agent \and DEVS Formalism}
+
+\input{intro}
+\input{related_works}
+\input{preliminary}
+\input{method_generation}
+\input{method_evaluation}
+\input{experiment}
+\input{conclusion}
+
+% \section{Conclusion}
+% Your conclusion here
+
+% \section*{Acknowledgments}
+% This was was supported in part by......
+
+%Bibliography
+\bibliographystyle{unsrt}  
+\bibliography{references}  
+
+\newpage
+\appendix
+\input{appendix}
+
+\end{document}

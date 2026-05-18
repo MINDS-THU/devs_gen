@@ -1,0 +1,52 @@
+\section{Structured Intermediate Representations}
+
+\label{app:data_structures}
+The \modelplan class serves as the central definition for any DEVS component. It strictly separates the functional logic from the logging requirements and enforces precise typing for input and output ports via \texttt{PortEntity} and \texttt{ProtocolSpec}.
+
+\begin{lstlisting}[language=Python, caption={Pydantic definitions for \modelplan}]
+class TypedEntity(BaseModel):
+    """
+    Defines a specific argument, input port, or output port.
+    """
+    name: str = Field(..., description="Variable or port name. should be a valid Python identifier.")
+    type: str = Field(
+        ..., 
+        description="Python type hint (e.g., 'int', 'str', 'List[int]', 'Dict[str, float]'). Keep structures simple."
+    )
+    structure: str = Field(
+        ..., 
+        description="Structure of the data. CRITICAL: If 'type' is a complex structure (like dict or list), "
+                    "you MUST detail the expected format, keys, and value constraints here."
+    )
+    
+class PortEntity(TypedEntity):
+    """
+    Defines a specific argument, input port, or output port.
+    """
+    protocol: ProtocolSpec = Field(
+        ...,
+        description="The protocol for this port. Including initiation and data exchange."
+    )
+
+class ModelPlan(BaseModel):
+    """
+    Detailed functional specification and Interface definition.
+    Used by both Atomic and Coupled models to define their EXTERNAL behavior and ports.
+    """
+    function: str = Field(..., description="The Responsibility & Workflow & Logic, as well as user specified details.")
+    logging: str = Field(..., description="logging requirements. e.g. What specific data should be logged for debugging/analysis.")
+    
+    model_init_args: list[TypedEntity] = Field(
+        default_factory=list, 
+        description="Parameters required to initialize the model class (e.g., initial_count, processing_time)."
+    )
+    input_ports: list[PortEntity] = Field(
+        default_factory=list, 
+        description="Data inputs received by this model."
+    )
+    output_ports: list[PortEntity] = Field(
+        default_factory=list, 
+        description="Data outputs sent by this model."
+    )
+\end{lstlisting}
+

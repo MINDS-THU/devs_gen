@@ -1,0 +1,20 @@
+\section{Qualitative Analysis: Failure Modes}
+\label{sec:failure_modes}
+
+To better understand the reliability boundaries of different approaches, we manually inspected the failure cases across the benchmark. We observe that DEVS-Gen and iterative agents exhibit fundamentally different failure signatures.
+
+\paragraph{Failures in DEVS-Gen: Semantic Misalignment.}
+Since DEVS-Gen follows a strict "correct-by-construction" structural template, it rarely suffers from the chaotic syntax errors or hallucinatory loops common in standard agents. Instead, its failures are typically local and semantic, stemming from limitations in the underlying LLM's grasp of formal DEVS semantics.
+\begin{itemize}[leftmargin=*]
+\item \emph{Transition Logic inversion:} A recurrent error pattern involves the misinterpretation of the DEVS simulation cycle, specifically the ordering of the output function $\lambda$ and the internal transition $\delta_{\textrm{int}}$. In the standard DEVS protocol, a model must emit output based on its current state before transitioning to the next state. However, weaker models occasionally attempt to compute output values during the phase of the previous cycle, leading to state-output desynchronization.
+\item \emph{Protocol Deviations:} In complex scenarios, the model may implement a conceptually correct state machine that misses a specific edge case in the specification, resulting in trace validation failures despite the simulator being structurally sound and executable.
+\end{itemize}
+
+\paragraph{Failures in Iterative Agents: Divergence and Stagnation.}
+In contrast, the failures of baseline agents (SWE-Agent, OpenHands) are often global and operational.
+\begin{itemize}[leftmargin=*]
+\item \emph{Debugging Loops:} When faced with implementation errors, these agents frequently enter "doom loops" where they repeatedly run the code, encounter an error, and attempt superficial fixes (e.g., adding print statements or changing variable names) without resolving the root cause. This explains the high token consumption and timeout rates observed in Table~\ref{tab:main_results}.
+\item \emph{Silent Failures:} A common failure mode for "Lite" baselines is the generation of code that runs without crashing but produces empty or nonsensical event traces due to a lack of understanding of the global event loop driver.
+\end{itemize}
+
+This comparison highlights that while DEVS-Gen is not immune to logic errors, its modularity constrains failures to the component level, making them easier to diagnose and fix compared to the entangled monolithic failures of iterative agents.

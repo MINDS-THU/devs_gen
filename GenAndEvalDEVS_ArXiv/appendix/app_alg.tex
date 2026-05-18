@@ -1,0 +1,93 @@
+% \section{Pseudocode for Spec-Driven DEVS Generation Pipeline}
+% % \begin{algorithm}[h]
+% % \caption{Recursive Planning}
+% % \label{alg:devs_planning}
+% % \begin{algorithmic}[1]
+% % \STATE \textbf{Input:} target specification \spec
+% % \STATE \textbf{Output:} architecture artifact \plantree
+% % \STATE \textit{// Step 1: Global skeleton inference}
+% % \STATE \texttt{Skeleton} $\leftarrow$ \textsc{InferGlobalBackbone}(\spec)
+% % \STATE \plantree $\leftarrow$ \textsc{InitializeHierarchy}(\texttt{Skeleton})
+
+% % \STATE \textit{// Step 2: Architecture refinement (Top-Down)}
+% % \FORALL{component $c \in$ \plantree in top-down order}
+% %     \IF{$c$ is Coupled Model}
+% %         \STATE $c.\text{interaction\_graph} \leftarrow$ \textsc{DefineRouting}(\spec, $c$)
+% %         \STATE \textsc{AssignChildContracts}(\spec, $c$) \textit{// Generate preliminary plans and interface schemas for children}
+% %     \ELSIF{$c$ is Atomic Model}
+% %         \STATE $c.\modelplan \leftarrow$ \textsc{MaterializeAtomicLogic}(\spec, $c.\text{preliminary\_plan}$)
+% %     \ENDIF
+% % \ENDFOR
+
+% % \STATE \textbf{return} \plantree
+% % \end{algorithmic}
+% % \end{algorithm}
+
+
+% \begin{algorithm}[h]
+% \caption{\methodname{} Pseudocode}
+% \label{alg:devs_main}
+% \begin{algorithmic}[1]
+% \STATE \textbf{Input:} specification \spec
+% \STATE \textbf{Output:} simulator $\cM$ (DEVS coupled model)
+
+% \STATE \texttt{PlanTree} $\leftarrow$ \textsc{Plan}(\spec) \textit{// See Alg.~\ref{alg:devs_planning}}
+
+% \STATE $\cM \leftarrow$ \textsc{Construct}(\plantree) \textit{// See Alg.~\ref{alg:devs_construct}}
+
+% \end{algorithmic}
+% \end{algorithm}
+
+% \begin{algorithm}[h]
+% \caption{Stage 1: Structural Synthesis (Plan Phase)}
+% \label{alg:devs_planning}
+% \begin{algorithmic}[1]
+% \STATE \textbf{Input:} target specification \spec
+% \STATE \textbf{Output:} architecture tree \plantree
+
+% \STATE \textit{// Step 1: Global skeleton inference}
+% \STATE \texttt{Skeleton} $\leftarrow$ \textsc{InferGlobalBackbone}(\spec)
+% \STATE \plantree $\leftarrow$ \textsc{InitializeTreeHierarchy}(\texttt{Skeleton})
+
+% \STATE \textit{// Step 2: Architecture refinement (Top-Down Parallel)}
+% \STATE \textsc{RefineNode}(\spec, \plantree.$root$)
+
+% \STATE \textbf{return} \plantree
+
+% \vspace{0.2cm}
+% \STATE \textbf{Function} \textsc{RefineNode}(\spec, $v$)
+%     \IF{$v$ is Coupled Model}
+%         \STATE \textsc{RefineCoupledPlan}(\spec, $v$) \textit{// Sets preliminary plan for all children}
+        
+%         \STATE \textit{// Refine children in parallel once their contracts are set}
+%         \FORALL{$child \in v.children$ \textbf{in parallel}}
+%             \STATE \textsc{RefineNode}(\spec, $child$)
+%         \ENDFOR
+%     \ELSIF{$v$ is Atomic Model}
+%         \STATE $v.\modelplan \leftarrow$ \textsc{RefineAtomicPlan}(\spec, $v$)
+%     \ENDIF
+% \STATE \textbf{EndFunction}
+% \end{algorithmic}
+% \end{algorithm}
+
+% \begin{algorithm}[h]
+% \caption{Bottom-Up Construction}
+% % with Dual-Verification
+% \label{alg:devs_construct}
+% \begin{algorithmic}[1]
+% \STATE \textbf{Input:} architecture artifact \plantree
+% \STATE \textbf{Output:} executable model $\cM$
+% \STATE \textbf{Function} \textsc{Construct}(\plantree)
+%     \STATE $\cM \leftarrow \emptyset$
+%     \STATE AllSummary $\leftarrow []$
+%     \FORALL{$child \in \plantree.children$ \textbf{in parallel}}
+%         \STATE $\cM \leftarrow \cM\cup$ \textsc{Construct}($child$)
+%         \STATE AllSummary.append(\textsc{Summarize}($\cM$))
+%     \ENDFOR
+    
+%     \STATE $\cM \leftarrow \cM\cup\{$ generate code using \plantree, AllSummary$\}$
+
+%     \STATE \textbf{return} $\cM$
+% \STATE \textbf{EndFunction}
+% \end{algorithmic}
+% \end{algorithm}

@@ -1,0 +1,38 @@
+\section{Formal Definition of Parallel DEVS}
+\label{app:devs_formalism}
+
+In this section, we provide the formal mathematical definitions of the Parallel DEVS (PDEVS) formalism \cite{RiscoMartin2023xDEVS} used to construct our discrete-event world models. 
+
+\paragraph{Atomic Models.}
+An atomic model encapsulates the localized state and behavioral logic of an entity. We define an atomic model $\cM_e$ for each entity $e \in \cE$ as the 8-tuple:
+\[
+\cM_e = \bigl(X_e, Y_e, \cS_e, \delta_{\mathrm{int}}^e, \delta_{\mathrm{ext}}^e, \delta_{\mathrm{con}}^e, \lambda^e, t_a^e \bigr)
+\]
+where:
+\begin{itemize}[leftmargin=*]
+    \item $X_e, Y_e \subseteq \Omega$ are the admissible input and output event alphabets.
+    \item $\cS_e$ is the local state space.
+    \item $\delta_{\mathrm{int}}^e : \cS_e \rightarrow \cS_e$ is the internal transition function.
+    \item $\delta_{\mathrm{ext}}^e : \cS_e \times \mathbb{R}_{\ge 0} \times \mathcal{B}(X_e) \rightarrow \cS_e$ is the external transition function. The real-valued argument denotes the elapsed simulation time since the last transition, and $\mathcal{B}(\cdot)$ denotes bags (multisets) of messages to handle concurrent inputs.
+    \item $\delta_{\mathrm{con}}^e : \cS_e \times \mathcal{B}(X_e) \rightarrow \cS_e$ is the confluent transition function, utilized to resolve conflicts when an external input arrives exactly at the scheduled internal transition time.
+    \item $\lambda^e : \cS_e \rightarrow \mathcal{B}(Y_e)$ is the output function.
+    \item $t_a^e : \cS_e \rightarrow \mathbb{R}_{\ge 0} \cup \{\infty\}$ is the time-advance function, determining the lifespan of the current state.
+\end{itemize}
+
+Operationally, an atomic model remains in state $s \in \cS_e$ for $t_a^e(s)$ units of simulated time. Upon expiration, it emits outputs via $\lambda^e$ and performs an internal transition via $\delta_{\mathrm{int}}^e$. If an input arrives before the scheduled internal transition, the model applies $\delta_{\mathrm{ext}}^e$ using the elapsed time. If an input arrives exactly at the internal transition time, $\delta_{\mathrm{con}}^e$ dictates the new state.
+
+\paragraph{Coupled Models.}
+Coupled models form the hierarchical structure of the system by composing sub-components and defining their routing topology. A coupled model $\cM_{c}$ is defined as the 7-tuple:
+\[
+\cM_{c} = \bigl(X_c, Y_c, \cD_c, \{\cM_d\}_{d \in \cD_c}, \mathrm{EIC}_c, \mathrm{EOC}_c, \mathrm{IC}_c \bigr)
+\]
+where:
+\begin{itemize}[leftmargin=*]
+    \item $X_c, Y_c \subset \Omega$ are the admissible input and output event alphabets.
+    \item $\mathcal{D}_c$ is an index set of sub-components, where each $\cM_d$ is either an atomic or a coupled model.
+    \item $\mathrm{EIC}_c \subset X_c \times \bigcup_{d \in \cD_c} X_d$ is the External Input Coupling, which routes events from the coupled model's external interface to its sub-components.
+    \item $\mathrm{EOC}_c \subset \bigcup_{d \in \cD_c} Y_d \times Y_c$ is the External Output Coupling, routing events from sub-components to the external interface.
+    \item $\mathrm{IC}_c \subset \bigcup_{d \in \cD_c} Y_d \times \bigcup_{d \in \cD_c} X_d$ is the Internal Coupling, which governs direct communication among sub-components.
+\end{itemize}
+
+This recursive structure yields a hierarchical representation whose root corresponds to the full simulator $\cM$. Through this root, overall external inputs are injected to drive the execution of the environment.

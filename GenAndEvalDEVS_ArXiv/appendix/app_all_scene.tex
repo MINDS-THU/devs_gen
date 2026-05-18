@@ -1,0 +1,105 @@
+\section{Benchmark Scenario Specifications}
+\label{app:scenarios}
+
+
+This section provides detailed descriptions for the 7 benchmark scenarios summarized in Table~\ref{tab:scenarios_compact}. For each scenario, we describe the system objective, the constituent entities, and the governing dynamics.
+We abopted this originally from \url{https://github.com/SimulationEverywhere/Cadmium-Simulation-Environment}, a widely acknowledged repository consisting various simulation tasks designed and implemented by human experts.
+
+\subsection{Online Banking System (IOBS)}
+\textbf{Domain:} Service Operations 
+\textbf{Dynamics Type:} Pipeline with Probabilistic Routing
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Overview:} This scenario models a linear transaction processing pipeline for an online banking system. It simulate the sequential validation of user requests through multiple security and processing layers. 
+\item \textbf{Entities:} The system consists of a chain of five modules: Account Access Manager, Account Number Verifier, Password Verifier, Bill Payment Manager, and Transaction Process Manager.
+\item \textbf{Dynamics:} The system operates as a single-direction pipeline. A request enters at given time and passes through each stage with a fixed processing delay (10s).
+\begin{itemize}
+\item \textbf{Probabilistic Branching:} At the ANV and PV stages, requests have a 50$\%$ probability of failing verification. Failed requests are terminated immediately (dropped from the pipeline), while valid requests proceed.
+\item \textbf{State Updates:} The final TPM stage maintains a persistent state (account balance) that is updated only upon the successful completion of the entire pipeline chain.
+\end{itemize}
+\end{itemize}
+
+\subsection{O-Train Light Rail (OTrain)}
+\textbf{Domain:} Transportation 
+\textbf{Dynamics Type:} Schedule-driven with Serial Delays
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Overview:} This scenario simulates a light rail transit system with a single train shuttling bi-directionally between 5 stations (Bayview to Greenboro). It models the interaction between the train schedule and stochastic passenger arrival.
+\item \textbf{Entities:} \textit{Train} (mobile resource), \textit{Stations} (fixed nodes), and \textit{Passengers} (transient entities).
+\item \textbf{Dynamics:}
+\begin{itemize}
+\item \textbf{Schedule-Driven Movement:} The train adheres to a strict timetable, moving between stations with fixed travel intervals.
+\item \textbf{Serial Serialization:} Unlike simple fluid queues, boarding and alighting are modeled as serial processes. Each passenger takes 0.025s to board or alight, creating a delay that is linearly proportional to the number of passengers.
+\item \textbf{Stochastic Generation:} Passengers are generated at stations using a randomized interval (Normal distribution), with specific origin-destination constraints.
+\end{itemize}
+\end{itemize}
+
+\subsection{Epidemic Compartmental Model (SEIRD)}
+\textbf{Domain:} Biological Systems 
+\textbf{Dynamics Type:} Continuous (ODE)
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Overview:} This scenario implements a classic SEIRD (Susceptible-Exposed-Infective-Recovered-Deceased) model to simulate disease spread within a closed population.
+\item \textbf{Entities:} The population is treated as an aggregate divided into five compartments (S, E, I, R, D).
+\item \textbf{Dynamics:} Unlike other event-driven scenarios, this model approximates continuous system dynamics using numerical integration (Forward Euler method).
+\begin{itemize}
+\item \textbf{State Evolution:} State updates occur at fixed time steps ( days). The transitions between compartments are governed by differential equations based on parameters such as transmission rate (), incubation period, and mortality rate.
+\item \textbf{Conservation:} The model must strictly enforce population conservation at every time step despite floating-point operations.
+\end{itemize}
+\end{itemize}
+
+\subsection{Offline File Transfer (OfflineFileTransfer)}
+\textbf{Domain:} Network Systems 
+\textbf{Dynamics Type:} Dual-Loop FSM with Interrupts
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Overview:} This scenario simulates a "Dropbox-like" synchronization system where a file upload process and a download process are decoupled by an intermediate server buffer.
+\item \textbf{Entities:} \textit{Sender}, \textit{Server} (acting as a buffer), \textit{Receiver}, and four reliable \textit{Subnets} (channels).
+\item \textbf{Dynamics:} The system features two asynchronous loops:
+\begin{itemize}
+\item \textbf{Dual-Loop Coupling:} The Upload Loop (Sender Server) and Download Loop (Server Receiver) operate independently but are coupled via the Server's storage queue. Both loops utilize the Alternating Bit Protocol (ABP) for reliability.
+\item \textbf{External Interrupts:} The simulation is driven by a command stream. The request command acts as an external interrupt (or valve) that can dynamically pause or resume the download loop, requiring the system to handle state persistence during interruptions.
+\end{itemize}
+\end{itemize}
+
+\subsection{C.5. Alternating Bit Protocol (ABP)}
+\textbf{Domain:} Network Protocols 
+\textbf{Dynamics Type:} Stop-and-Wait with Deterministic Noise
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Overview:} A standard implementation of the Alternating Bit Protocol (ABP) to achieve reliable data transmission over an unreliable channel.
+\item \textbf{Entities:} \textit{Sender}, \textit{Receiver}, and two \textit{Subnets} (Forward and Backward channels).
+\item \textbf{Dynamics:}
+\begin{itemize}
+\item \textbf{State Machine:} The Sender implements a "Stop-and-Wait" FSM. It sends a packet and blocks until a valid ACK (with the matching bit) is received or a timeout occurs.
+\item \textbf{Deterministic Noise:} Packet loss is not random but governed by a Linear Congruential Generator (LCG) inside the subnets. This ensures the simulation is strictly reproducible: packet fate (drop vs. pass) is pre-determined by the seed, testing the model's ability to implement precise algorithmic logic.
+\end{itemize}
+\end{itemize}
+
+\subsection{C.6. Strategic Airlift Operations (StrategicAirlift)}
+\textbf{Domain:} Logistics 
+\textbf{Dynamics Type:} Active Reneging \& Resource Cycling
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Overview:} A complex logistics simulation managing the transport of cargo pallets via a fleet of aircraft.
+\item \textbf{Entities:} \textit{Facility} (Source), \textit{Loading Queue}, \textit{Fleet Coordinator}, multiple \textit{Aircraft}, and \textit{Destination}.
+\item \textbf{Dynamics:}
+\begin{itemize}
+\item \textbf{Active Reneging:} Pallets in the queue have a finite lifespan. The queue must actively monitor expiration times and autonomously discard (renege) items that stay too long, even without external events.
+\item \textbf{Resource Scheduling:} Aircraft follow a multi-stage state cycl. The Coordinator must match available cargo with idle aircraft, handling resource contention.
+\end{itemize}
+\end{itemize}
+
+\subsection{C.7. Barbershop (Barbershop)}
+\textbf{Domain:} Service Queueing 
+\textbf{Dynamics Type:} Blocking \& Handshake Signaling
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Overview:} A classic queuing simulation of a barbershop with a reception area and a two-stage service process (Inspection and Cutting).
+\item \textbf{Entities:} \textit{Reception Desk}, \textit{Inspection Station}, and \textit{Cutting Station}.
+\item \textbf{Dynamics:}
+\begin{itemize}
+\item \textbf{Finite Blocking:} The reception queue has a hard capacity (limit 8). Arrivals when the queue is full are strictly rejected (Blocking).
+\item \textbf{Inter-module Signaling:} The two service stages (Inspection and Cutting) operate sequentially. The Inspection module must wait for a "done" signal from the Cutting module (Handshake) before it can release the current customer and accept a new one from Reception.
+\end{itemize}
+\end{itemize}
