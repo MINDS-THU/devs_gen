@@ -299,6 +299,60 @@ body {
   line-height: 1.8;
 }
 
+.planning-showcase {
+  margin-top: 2.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: var(--shadow-sm);
+}
+
+.planning-showcase__intro {
+  max-width: 860px;
+  margin: 0 auto 1.4rem;
+  text-align: center;
+}
+
+.planning-showcase__intro h3 {
+  margin: 0 0 0.65rem;
+  color: var(--text-primary);
+}
+
+.planning-showcase__intro p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+.planning-showcase__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.95fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.planning-showcase__figure,
+.planning-showcase__aside {
+  height: 100%;
+}
+
+.planning-showcase__figure .figure-caption {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  text-align: left;
+}
+
+.planning-showcase__aside {
+  text-align: left;
+}
+
+.planning-showcase__aside .compact-list {
+  padding-left: 1.1rem;
+}
+
 .figure-card {
   background: var(--background-primary);
   border: 1px solid var(--border-color);
@@ -489,6 +543,54 @@ body {
   margin-bottom: 0.35rem;
   color: var(--text-primary);
   font-size: 1.05rem;
+}
+
+.benchmark-layout,
+.result-layout {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.result-layout {
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.95fr);
+  align-items: stretch;
+}
+
+.result-layout > * {
+  height: 100%;
+}
+
+.benchmark-layout .figure-card,
+.result-layout .figure-card,
+.experiment-followup {
+  box-shadow: var(--shadow-sm);
+}
+
+.experiment-followup {
+  margin-top: 1.5rem !important;
+}
+
+.experiment-followup img {
+  margin-bottom: 0.25rem;
+}
+
+@media screen and (max-width: 768px) {
+  .result-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .planning-showcase {
+    padding: 1rem;
+  }
+
+  .planning-showcase__intro {
+    text-align: left;
+  }
+
+  .planning-showcase__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .publication-venue {

@@ -324,14 +324,14 @@
             </div>
 
             <div class="hero-intro">
-              <p class="hero-kicker">A discrete-event world-model stack for queues, deadlines, logistics, and other non-physical domains</p>
+              <p class="hero-kicker">A discrete-event world-model framework for queues, deadlines, logistics, and other event-driven domains</p>
               <p class="hero-summary">
-                DEVS-Gen turns a natural-language process description into an executable simulator in the DEVS formalism, where system state changes through explicit events such as arrivals, dispatches, delays, and handoffs. The same simulator can then be checked against the specification, reused for what-if planning, and streamed into an interactive frontend.
+                DEVS-Gen turns a natural-language process description into an executable simulator in the DEVS formalism, where system state changes through explicit events such as arrivals, dispatches, delays, and handoffs. The same simulator can then be validated against the specification, reused for what-if analysis, and streamed into an interactive frontend.
               </p>
               <div class="hero-metrics">
                 <article class="hero-metric-card">
                   <h3>Text to Simulator</h3>
-                  <p>Infer a modular simulator with explicit components and interfaces from natural-language requirements instead of relying on free-form rollouts.</p>
+                  <p>Infer a modular simulator with explicit components and interfaces from natural-language requirements, rather than relying on free-form rollouts.</p>
                 </article>
                 <article class="hero-metric-card">
                   <h3>Trace-Based Evaluation</h3>
@@ -353,22 +353,22 @@
 
 <!-- Overview -->
 <section class="section hero is-light">
-  <div class="container is-max-desktop">
+  <div class="container page-shell page-shell--wide">
     <div class="columns is-centered has-text-centered">
-      <div class="column is-four-fifths">
+      <div class="column is-full">
         <h2 class="title is-3">Why Discrete-Event World Models?</h2>
         <div class="content has-text-justified">
           <p>
-            A world model is an executable description of how an environment evolves and how actions change later outcomes. In many high-value domains, that evolution is driven not by continuous physics but by discrete events: arrivals, service delays, resource contention, deadlines, and causal handoffs.
+            A world model is an executable account of how an environment evolves and how actions shape later outcomes. In many high-value domains, that evolution is driven not by continuous physics but by discrete events: arrivals, service delays, resource contention, deadlines, and causal handoffs.
           </p>
           <p>
-            Logistics pipelines, hospital operations, business processes, and lab workflows all fall into that regime. They need models that answer questions such as what happens next, what fails under delay, and which intervention is actually better once timing and coordination constraints are enforced.
+            Logistics pipelines, hospital operations, business processes, and lab workflows all fall into this regime. They need models that can answer questions such as what happens next, what breaks under delay, and which intervention is actually better once timing and coordination constraints are enforced.
           </p>
           <p>
-            DEVS-Gen targets this setting with DEVS, a modular simulator formalism built around components, ports, and event-triggered transitions. The framework first decides the simulator structure, then fills in component behavior, and finally evaluates the result through observable traces. That makes the output both a benchmarkable research artifact and a practical world model for downstream decision support.
+            DEVS-Gen targets this setting with DEVS, a modular simulator formalism built around components, ports, and event-triggered transitions. The framework first decides the simulator structure, then fills in component behavior, and finally evaluates the resulting simulator through observable traces. The output is therefore both a benchmarkable research artifact and a reusable world model for downstream decision support.
           </p>
         </div>
-        <div class="overview-grid">
+        <!-- <div class="overview-grid">
           <article class="overview-card">
             <h3>Target Setting</h3>
             <p>Queueing, scheduling, maintenance, and coordination tasks where event order, waiting time, and resource conflicts determine the outcome.</p>
@@ -379,7 +379,89 @@
           </article>
           <article class="overview-card">
             <h3>What This Page Shows</h3>
-            <p>The rest of the page walks through one end-to-end benchmark, two planning examples, the main experimental results, and the code entry points needed to reproduce the workflow.</p>
+            <p>The rest of the page shows how DEVS-Gen builds a world model, how that simulator can be reused for downstream analysis, and how the benchmark evaluates runnable and behavioral correctness.</p>
+          </article>
+        </div> -->
+        <div class="planning-showcase">
+          <div class="planning-showcase__intro">
+            <h3 class="title is-4">Example Downstream Uses</h3>
+            <p>
+              Once a DEVS simulator has been generated, it can be reused for what-if analysis and plan replay under explicit timing, resource, and legality constraints. The two case studies below illustrate that downstream use by comparing a text-only choice with the outcome obtained after executing candidate plans in the same world model.
+            </p>
+          </div>
+          <div class="planning-showcase__grid">
+            <div class="figure-card planning-showcase__figure">
+              <img src="static/images/complete_pipeline.png" alt="Planning-oriented complete pipeline" loading="lazy"/>
+              <p class="figure-caption">
+                Read the figure as a downstream-use loop: task descriptions and candidate actions go into the generated simulator; the simulator emits traces and scores; those execution traces reveal consequences that are easy to miss in text alone. The two case cards below summarize that loop for ICU treatment and wet-lab scheduling.
+              </p>
+            </div>
+            <article class="insight-card planning-showcase__aside">
+              <h3>How to Read These Use Cases</h3>
+              <ul class="compact-list">
+                <li>These examples are meant to show how a generated world model can be reused after synthesis, not to claim a separate planning benchmark.</li>
+                <li>Each case is shown twice: first as a narrative answer, then as the result of executing the candidates in the simulator.</li>
+                <li>Execution makes delayed side effects, resource conflicts, and legality violations explicit in the traces and scores.</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+        <div class="decision-grid">
+          <article class="decision-card">
+            <div class="decision-header">
+              <h3>ICU Sepsis Treatment</h3>
+              <span class="decision-tag">Executable plan comparison over a 6-hour horizon</span>
+            </div>
+            <p>
+              In the ICU example, three 6-hour treatment plans trade off blood-pressure recovery, infection reduction, kidney stress, and fluid-overload risk. Text-only reasoning favors Plan 2, while executing all three plans in the same simulator points instead to Plan 3.
+            </p>
+            <ul class="compact-list mt-4">
+              <li>The hidden trade-off is kidney damage: Plan 2 and Plan 3 both reach 30 infection points, but Plan 3 cuts the kidney penalty from 35 to 15.</li>
+              <li>This example shows how a shared transition model can surface consequences that are not obvious from narrative reasoning alone.</li>
+            </ul>
+            <div class="decision-compare">
+              <div class="decision-box decision-box--bad">
+                <span class="decision-label">Text-only answer</span>
+                <strong>Plan 2</strong>
+                <p>Picked before any plan was executed.</p>
+              </div>
+              <div class="decision-box decision-box--good">
+                <span class="decision-label">Simulator-backed answer</span>
+                <strong>Plan 3</strong>
+                <p>Scores from execution: Plan 1 = -35, Plan 2 = -5, Plan 3 = 15.</p>
+              </div>
+            </div>
+            <div class="action-row">
+              <a href="javascript:void(0);" onclick="openReactModal('icu')" class="button is-dark is-rounded">Open ICU Walkthrough</a>
+            </div>
+          </article>
+          <article class="decision-card">
+            <div class="decision-header">
+              <h3>Wet-Lab Scheduling</h3>
+              <span class="decision-tag">Subtle legality and scoring constraints</span>
+            </div>
+            <p>
+              In the wet-lab example, three fixed schedules compete under one technician, one incubator, one assay machine, and a delayed biosafety lockout that blocks some preparation steps. Text-only reasoning favors Strategy C, but replaying the schedules in the simulator shows that Strategy B is the best valid schedule.
+            </p>
+            <ul class="compact-list mt-4">
+              <li>The crucial hidden constraint is the delayed lockout: Strategy C looks faster on paper, but execution turns several scripted actions invalid.</li>
+              <li>Once those violations are counted, the simulator ranks the schedules as A = 21, B = 23, C = 22 and selects Strategy B.</li>
+            </ul>
+            <div class="decision-compare">
+              <div class="decision-box decision-box--bad">
+                <span class="decision-label">Text-only answer</span>
+                <strong>Strategy C</strong>
+                <p>Looked best before resource and lockout rules were executed.</p>
+              </div>
+              <div class="decision-box decision-box--good">
+                <span class="decision-label">Simulator-backed answer</span>
+                <strong>Strategy B</strong>
+                <p>Composite scores: A = 21, B = 23, C = 22.</p>
+              </div>
+            </div>
+            <div class="action-row">
+              <a href="javascript:void(0);" onclick="openReactModal('wetlab')" class="button is-dark is-rounded">Open Wet-Lab Walkthrough</a>
+            </div>
           </article>
         </div>
       </div>
@@ -393,7 +475,7 @@
       <h2 class="title is-3 has-text-centered">How DEVS-Gen Works</h2>
       <div class="section-lead">
         <p>
-          DEVS-Gen is a staged pipeline. It first decides what modules the simulator should contain and how they communicate, then writes the behavior of each module under those interface constraints, and finally evaluates or reuses the resulting simulator through its event stream. The Strategic Airlift case below illustrates those stages end to end.
+          DEVS-Gen follows a staged pipeline. It first decides what modules the simulator should contain and how they communicate, then writes the behavior of each module under those interface constraints, and finally evaluates or reuses the resulting simulator through its event stream. The Strategic Airlift case below illustrates those stages end to end.
         </p>
       </div>
       <div class="figure-card figure-card--large">
@@ -406,23 +488,23 @@
         <article class="step-card">
           <span class="step-number">1</span>
           <h3>Structure Planning</h3>
-          <p>Build a structural plan, called a PlanTree, that fixes the module decomposition, port interfaces, and coupling graph before any DEVS code is written.</p>
+          <p>Construct a structural plan, called a PlanTree, that fixes the module decomposition, port interfaces, and coupling graph before any DEVS code is written.</p>
         </article>
         <article class="step-card">
           <span class="step-number">2</span>
           <h3>Behavioral Synthesis</h3>
-          <p>Generate the logic of atomic and coupled models under those contracts, then assemble the full executable simulator bottom-up.</p>
+          <p>Generate the logic of atomic and coupled models under those contracts, then assemble the full simulator bottom-up.</p>
         </article>
         <article class="step-card">
           <span class="step-number">3</span>
           <h3>Evaluation and Reuse</h3>
-          <p>Run trace-based checkers on the simulator and expose the same event stream to benchmarks, interventions, and live visualization.</p>
+          <p>Run trace-based checkers on the simulator and reuse the same event stream for benchmarks, interventions, and live visualization.</p>
         </article>
       </div>
       <h3 class="title is-4 has-text-centered mt-6">Strategic Airlift Case Study</h3>
       <div class="section-lead">
         <p>
-          Strategic Airlift instantiates the full workflow: a benchmark specification goes in, an executable simulator comes out, checker scripts score the emitted traces, and a frontend animation listens to those same backend events.
+          The Strategic Airlift case study instantiates the full workflow: a benchmark specification goes in, an executable simulator comes out, checker scripts score the emitted traces, and a frontend animation listens to those same backend events.
         </p>
       </div>
 
@@ -443,158 +525,65 @@
   </div>
 </section>
 
-<section class="hero is-small">
-  <div class="hero-body">
-    <div class="container page-shell page-shell--wide">
-      <h2 class="title is-3 has-text-centered">Online Planning with Generated World Models</h2>
-      <div class="section-lead">
-        <p>
-          The benchmark above shows whether the generated simulator is faithful to the specification. This section shows the downstream use case: once the simulator exists, an agent can compare candidate interventions by simulation before committing to a recommendation.
-        </p>
-      </div>
-      <div class="columns is-vcentered planning-layout">
-        <div class="column is-7">
-          <div class="figure-card">
-            <img src="static/images/complete_pipeline.png" alt="Planning-oriented complete pipeline" loading="lazy"/>
-            <p class="figure-caption">
-              The generated simulator becomes a reusable tool inside the decision loop: propose interventions, run them, inspect traces and KPIs, then choose the action supported by execution evidence.
-            </p>
-          </div>
-        </div>
-        <div class="column is-5">
-          <article class="insight-card">
-            <h3>Why Simulation Changes Decisions</h3>
-            <ul class="compact-list">
-              <li>Delayed side effects that look harmless in text-only reasoning can dominate the final outcome once the process is executed step by step.</li>
-              <li>Legality and sequencing constraints become explicit once every candidate plan is run under one shared transition system.</li>
-              <li>The two case studies below show concrete cases where the simulator changes the selected intervention.</li>
-            </ul>
-          </article>
-        </div>
-      </div>
-      <div class="decision-grid">
-        <article class="decision-card">
-          <div class="decision-header">
-            <h3>ICU Sepsis Treatment</h3>
-            <span class="decision-tag">Executable plan comparison over a 6-hour horizon</span>
-          </div>
-          <p>
-            In the ICU case, direct reasoning selects Plan 2. The model-assisted workflow simulates the candidate plans under a shared transition model and instead selects Plan 3.
-          </p>
-          <div class="decision-compare">
-            <div class="decision-box decision-box--bad">
-              <span class="decision-label">Direct reasoning</span>
-              <strong>Plan 2</strong>
-              <p>Selected from text-only reasoning.</p>
-            </div>
-            <div class="decision-box decision-box--good">
-              <span class="decision-label">Model-assisted simulation</span>
-              <strong>Plan 3</strong>
-              <p>Scores from execution: Plan 1 = -35, Plan 2 = -5, Plan 3 = 15.</p>
-            </div>
-          </div>
-          <div class="action-row">
-            <a href="javascript:void(0);" onclick="openReactModal('icu')" class="button is-dark is-rounded">Open ICU Walkthrough</a>
-          </div>
-        </article>
-        <article class="decision-card">
-          <div class="decision-header">
-            <h3>Wet-Lab Scheduling</h3>
-            <span class="decision-tag">Subtle legality and scoring constraints</span>
-          </div>
-          <p>
-            In the wet-lab case, direct reasoning selects Strategy C. The DEVS-assisted workflow evaluates all candidates under one shared simulator and instead selects Strategy B.
-          </p>
-          <div class="decision-compare">
-            <div class="decision-box decision-box--bad">
-              <span class="decision-label">Direct reasoning</span>
-              <strong>Strategy C</strong>
-              <p>Not selected after executable evaluation.</p>
-            </div>
-            <div class="decision-box decision-box--good">
-              <span class="decision-label">Model-assisted simulation</span>
-              <strong>Strategy B</strong>
-              <p>Composite scores: A = 21, B = 23, C = 22.</p>
-            </div>
-          </div>
-          <div class="action-row">
-            <a href="javascript:void(0);" onclick="openReactModal('wetlab')" class="button is-dark is-rounded">Open Wet-Lab Walkthrough</a>
-          </div>
-        </article>
-      </div>
-    </div>
-  </div>
-</section>
-
 <section class="hero is-small is-light">
   <div class="hero-body">
     <div class="container page-shell page-shell--wide">
       <h2 class="title is-3 has-text-centered">Experiments</h2>
       <div class="section-lead">
         <p>
-          After the case-study walkthroughs, the experiments answer two broader questions: how often does DEVS-Gen produce runnable simulators, and how often do those simulators behave correctly according to specification-derived checkers?
+          This section does two things: it explains the benchmark we constructed for discrete-event world-model generation and summarizes what that benchmark shows about runnable execution and specification-level behavior.
         </p>
       </div>
-      <div class="columns is-vcentered benchmark-layout">
-        <div class="column is-7">
-          <div class="figure-card">
-            <img src="static/images/benchmark_scenarios.png" alt="Benchmark scenarios" loading="lazy"/>
-            <p class="figure-caption">
-              The benchmark spans seven scenarios across networking, service operations, banking, transport, logistics, and bio-math dynamics, from compact protocols like ABP to large logistics problems like Strategic Airlift.
-            </p>
+      <div class="benchmark-layout">
+        <div class="info-panel">
+          <h3>The Benchmark We Constructed</h3>
+          <p>
+            Each benchmark task is packaged so that generation and evaluation are reproducible from observable behavior, rather than tied to one hidden reference implementation.
+          </p>
+          <div class="score-grid">
+            <article class="score-card">
+              <h4>Score<sub>ope</sub></h4>
+              <p>Measures whether the generated simulator runs, follows the required I/O contract, and emits valid trace logs.</p>
+            </article>
+            <article class="score-card">
+              <h4>Score<sub>beh</sub></h4>
+              <p>Measures whether the emitted traces satisfy specification-derived behavioral rules about state changes, timing, and causality.</p>
+            </article>
           </div>
+          <ul class="compact-list">
+            <li>Each scenario ships as a self-contained package with a natural-language specification, execution inputs, and checker scripts.</li>
+            <li>The benchmark is intentionally strict: operational success alone is not enough unless the generated simulator also behaves correctly over traces.</li>
+            <li>Trace-based validation keeps the benchmark implementation-agnostic, so different generated codebases can still be compared under the same rules.</li>
+          </ul>
         </div>
-        <div class="column is-5">
-          <div class="info-panel">
-            <h3>How the benchmark scores</h3>
-            <div class="score-grid">
-              <article class="score-card">
-                <h4>Score<sub>ope</sub></h4>
-                <p>The simulator must run successfully, obey the input-output contract, and emit valid JSONL traces in the required schema.</p>
-              </article>
-              <article class="score-card">
-                <h4>Score<sub>beh</sub></h4>
-                <p>Checker scripts validate both local state evolution and larger causal timing patterns against the specification.</p>
-              </article>
-            </div>
-            <ul class="compact-list">
-              <li>Each scenario ships as a self-contained package with a specification, test inputs, and checker scripts.</li>
-              <li>The benchmark is deliberately strict so that it measures synthesis quality instead of giving credit for loosely matching an underspecified task.</li>
-              <li>Behavioral validation stays implementation-agnostic by checking traces rather than assuming one canonical reference implementation.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      <div class="columns is-vcentered result-layout mt-5">
-        <div class="column is-7">
-          <div class="figure-card">
-            <img src="static/images/main_result.png" alt="Main benchmark results" loading="lazy"/>
-            <p class="figure-caption">
-              DEVS-Gen stays competitive with fully iterative software agents while operating as a structured single-pass generation pipeline.
-            </p>
-          </div>
-        </div>
-        <div class="column is-5">
-          <article class="insight-card">
-            <h3>Key Result</h3>
-            <ul class="compact-list">
-              <li>Single-pass DEVS-Gen remains close to fully iterative software agents on both operational and behavioral metrics.</li>
-              <li>On GLM-4.7, it reaches 0.95 on Score<sub>ope</sub> and 0.75 on Score<sub>beh</sub> without code execution loops.</li>
-              <li>A key advantage is predictability: explicit structure planning turns a brittle multi-file generation task into smaller localized synthesis problems.</li>
-            </ul>
-          </article>
-          <div class="figure-card figure-card--compact">
-            <img src="GenAndEvalDEVS_ArXiv/imgs/ablation_parall.png" alt="Parallel synthesis ablation" loading="lazy"/>
-            <p class="figure-caption">
-              In the ablation study, parallel synthesis yields about a 4.7x wall-clock speedup for component generation.
-            </p>
-          </div>
+        <div class="figure-card">
+          <img src="static/images/benchmark_scenarios.png" alt="Benchmark scenarios" loading="lazy"/>
+          <p class="figure-caption">
+            The benchmark spans seven discrete-event scenarios across networking, service operations, banking, transport, logistics, and bio-math dynamics, from compact protocols such as ABP to larger systems such as Strategic Airlift.
+          </p>
         </div>
       </div>
-      <div class="figure-card figure-card--compact mt-5">
+      <div class="result-layout">
+        <div class="figure-card">
+          <img src="static/images/main_result.png" alt="Main benchmark results" loading="lazy"/>
+          <p class="figure-caption">
+            The main result compares DEVS-Gen against iterative software-agent baselines on the same benchmark, using both operational success and behavioral correctness.
+          </p>
+        </div>
+        <article class="insight-card">
+          <h3>Key Results</h3>
+          <ul class="compact-list">
+            <li>DEVS-Gen performs competitively with fully iterative software agents on both operational and behavioral metrics, despite using a more structured generation pipeline.</li>
+            <li>With GLM-4.7, it reaches 0.95 on Score<sub>ope</sub> and 0.75 on Score<sub>beh</sub> without relying on repeated code-execution repair loops.</li>
+            <li>The main advantage is predictability: explicit structure planning breaks a brittle multi-file synthesis problem into smaller, localized generation steps.</li>
+            <!-- <li>In the ablation study, parallel synthesis gives about a 4.7x wall-clock speedup for component generation.</li> -->
+          </ul>
+        </article>
+      </div>
+      <div class="figure-card figure-card--compact experiment-followup mt-5">
         <img src="static/images/tts_cdf_all.png" alt="Time-to-success comparison" loading="lazy"/>
         <p class="figure-caption">
-          Time-to-success highlights the efficiency gap: iterative baselines often stall in debugging loops before reaching high success rates, whereas DEVS-Gen continues to accumulate solved tasks over time.
+          The time-to-success view complements the main benchmark table by showing how quickly methods accumulate solved tasks. DEVS-Gen continues to convert time into completed benchmark cases, while iterative baselines more often stall in debugging-and-repair loops.
         </p>
       </div>
     </div>
@@ -608,7 +597,7 @@
         <h2 class="title is-3 has-text-centered">Try the Framework</h2>
         <div class="content has-text-justified">
           <p>
-            The open-source release builds on the <a href="https://github.com/MINDS-THU/HAMLET" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 500;">HAMLET</a> stack and ships with the benchmark suite used in the paper. If you want to reproduce the main workflow, there are two entry points: <code>devs_app.run</code> for direct model generation and <code>devs_tester</code> for benchmark-style generation and evaluation.
+            The open-source release builds on the <a href="https://github.com/MINDS-THU/HAMLET" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 500;">HAMLET</a> stack and includes the benchmark suite used in the paper. If you want to reproduce the main workflow, there are two main entry points: <code>devs_app.run</code> for direct model generation and <code>devs_tester</code> for benchmark-style generation and evaluation.
           </p>
 
           <h3 class="title is-5 mt-4">1. Environment & Configuration</h3>
@@ -624,7 +613,7 @@ cp .env.example .env
 # Fill in at least one model API key plus the search/scraping keys referenced in the repo README.</code></pre>
 
           <h3 class="title is-5 mt-5">2. Generate a DEVS Model</h3>
-          <p>The direct generation entry point takes a benchmark specification package and produces a simulator. The example below runs the generator on the Alternating Bit Protocol benchmark.</p>
+          <p>The direct generation entry point takes a benchmark specification package and produces a simulator. The example below runs the generator on the Alternating Bit Protocol (ABP) benchmark.</p>
           <pre><code>python -m devs_app.run \
   --mode generate \
   --debug_args_file benchmark/ABP/ABP_D1.yaml \
@@ -633,7 +622,7 @@ cp .env.example .env
           <p>If you want to inspect the system interactively instead, launch the Gradio interface with <code>python -m devs_app.run</code>.</p>
 
           <h3 class="title is-5 mt-5">3. Run Benchmark-Style Evaluation</h3>
-          <p>The experiment harness in <code>devs_tester</code> reproduces the generation and evaluation workflow used for the paper benchmarks.</p>
+          <p>The experiment harness in <code>devs_tester</code> reproduces the generation-and-evaluation workflow used in the paper benchmarks.</p>
           <pre><code>cd devs_tester
 
 python gen_runner.py --list-frameworks
@@ -755,7 +744,7 @@ python eval_runner.py \
       window.location.hash = 'benchmark';
 
       try {
-        await import('./demos/assets/index-B0dXRlry.js');
+        await import('./demos/assets/index-BbwlZR9J.js');
       } finally {
         document.getElementById = originalGetElementById;
 

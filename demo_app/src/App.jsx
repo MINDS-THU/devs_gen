@@ -6473,7 +6473,7 @@ export default function App() {
         {topTab !== 'workflow' && (
         <>
         {activeCase.id === BENCHMARK_CASE_ID && (
-          <Panel icon={<FileJson2 className="size-4" />} title="1) Input Specification Given to Generator (three required parts)">
+          <Panel icon={<FileJson2 className="size-4" />} title="Input Specification Given to Generator (three required parts)">
             <div className="mb-2 rounded-lg border border-sky-200 bg-sky-50 p-2">
               <p className="text-xs font-semibold text-sky-900">Exact LLM input for this benchmark scene.</p>
               <p className="mt-1 text-[11px] text-slate-700">The three blocks below are fed together as one task requirement package.</p>
@@ -6585,12 +6585,12 @@ export default function App() {
                   </p>
                   <div className="space-y-2 text-[11px] text-slate-700">
                     <div className="rounded-lg border border-slate-200 bg-white p-2">
-                      <p className="font-semibold text-indigo-700">2) Stage 1: Structural Planning</p>
+                      <p className="font-semibold text-indigo-700">Stage 1: Structural Planning (from Natural Language to PlanTree)</p>
                       <p>Generate model decomposition and interface skeleton.</p>
                     </div>
                     <div className="flex justify-center text-slate-500">↓</div>
                     <div className="rounded-lg border border-slate-200 bg-white p-2">
-                      <p className="font-semibold text-violet-700">3) Stage 2: Behavioral Synthesizing</p>
+                      <p className="font-semibold text-violet-700">Stage 2: Behavioral Synthesizing (from PlanTree to DEVS Model)</p>
                       <p>Generate executable wiring and DEVS behavior methods.</p>
                     </div>
                   </div>
@@ -6598,12 +6598,12 @@ export default function App() {
 
                 <div className="my-1 h-14 border-l-2 border-emerald-400" />
                 <p className="-mt-1 mb-1 text-emerald-500">↓</p>
-                <p className="text-center text-[11px] font-semibold text-emerald-700">to panel 4 evaluation</p>
+                <p className="text-center text-[11px] font-semibold text-emerald-700">Evaluation of the Generated DEVS Model</p>
               </div>
             </div>
 
             <div className="grid min-w-0 gap-4">
-              <Panel icon={<GitBranch className="size-4" />} title="2) Stage 1: Structural Planning (PlanTree / Algorithm 2)">
+              <Panel icon={<GitBranch className="size-4" />} title="Stage 1: Structural Planning (from Natural Language to PlanTree)">
                 <p className="mb-2 text-xs text-slate-600">
                   This panel shows the structural generation result for this scene: model decomposition and interface skeleton.
                 </p>
@@ -6665,7 +6665,7 @@ export default function App() {
                 </div>
               </Panel>
 
-              <Panel icon={<Network className="size-4" />} title="3) Stage 2: Behavioral Synthesizing (Code Topology + DEVS Methods)">
+              <Panel icon={<Network className="size-4" />} title="Stage 2: Behavioral Synthesizing (from PlanTree to DEVS Model)">
                 <p className="mb-2 text-xs text-slate-600">
                   This panel shows the behavioral generation result: executable wiring and DEVS transition/output methods used in evaluation.
                 </p>
@@ -6841,7 +6841,7 @@ export default function App() {
         )}
 
         {activeCase.id === BENCHMARK_CASE_ID && (
-          <Panel icon={<CheckCircle2 className="size-4" />} title="4) Evaluation on the Generated Model: Trace-based, Specification-driven (Sec.4)">
+          <Panel icon={<CheckCircle2 className="size-4" />} title="Evaluation of the Generated DEVS Model">
             <p className="mb-2 text-xs text-slate-600">
               This stage is the actual benchmark evaluation: run test suite cases, read traces from the generated model, apply checker rules, then aggregate final metrics.
             </p>
@@ -7126,7 +7126,7 @@ function WorkflowAgentDemo({ activeCase }) {
               </p>
               <div className="grid w-full gap-3">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-700">Stage 1: Structural Planning (PlanTree / Algorithm 2)</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-700">Stage 1: Structural Planning (from Natural Language to PlanTree)</p>
                   <div className="grid gap-3 lg:grid-cols-[0.95fr_1fr]">
                     <div className="rounded-2xl border border-slate-200 bg-white p-3">
                       <TreeNode
@@ -7149,7 +7149,7 @@ function WorkflowAgentDemo({ activeCase }) {
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-700">Stage 2: Behavioral Synthesizing (Code Topology + DEVS Methods)</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-700">Stage 2: Behavioral Synthesizing (from PlanTree to DEVS Model)</p>
                   <div className="grid gap-3">
                     <div className="rounded-2xl border border-slate-200 bg-white p-3">
                       <CodeGraph
