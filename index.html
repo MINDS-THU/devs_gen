@@ -339,7 +339,7 @@
                 </article>
                 <article class="hero-metric-card">
                   <h3>Planning and Visualization</h3>
-                  <p>Reuse the same simulator for what-if analysis, case-study walkthroughs, and frontend animation driven by the live trace stream.</p>
+                  <p>Reuse the same simulator for what-if analysis and frontend animation driven by the live trace stream.</p>
                 </article>
               </div>
             </div>
@@ -528,22 +528,28 @@
 <section class="hero is-small is-light">
   <div class="hero-body">
     <div class="container page-shell page-shell--wide">
-      <h2 class="title is-3 has-text-centered">Experiments</h2>
-      <div class="section-lead">
-        <p>
-          This section does two things: it explains the benchmark we constructed for discrete-event world-model generation and summarizes what that benchmark shows about runnable execution and specification-level behavior.
-        </p>
+      
+      <h2 class="title is-3 has-text-centered mb-5">Experiments</h2>
+      
+      <div class="columns is-centered mb-6">
+        <div class="column is-9 has-text-centered section-lead">
+          <p class="is-size-5 has-text-grey-dark">
+            This section details our reproducible benchmark for discrete-event world models and summarizes the performance of DEVS-Gen against iterative software agents.
+          </p>
+        </div>
       </div>
+
+      <h3 class="title is-4 mb-4">The Benchmark We Constructed</h3>
+
       <div class="benchmark-layout">
         <div class="info-panel">
-          <h3>The Benchmark We Constructed</h3>
           <p>
             Each benchmark task is packaged so that generation and evaluation are reproducible from observable behavior, rather than tied to one hidden reference implementation.
           </p>
           <div class="score-grid">
             <article class="score-card">
               <h4>Score<sub>ope</sub></h4>
-              <p>Measures whether the generated simulator runs, follows the required I/O contract, and emits valid trace logs.</p>
+              <p>Measures whether the generated simulator successfully runs, follows the required I/O contract, and emits valid trace logs.</p>
             </article>
             <article class="score-card">
               <h4>Score<sub>beh</sub></h4>
@@ -563,25 +569,45 @@
           </p>
         </div>
       </div>
+
+      <hr class="has-background-grey-light mb-6" style="height: 1px; opacity: 0.3;">
+
+      <h3 class="title is-4 mb-4">Main Results</h3>
       <div class="columns result-layout is-variable is-4">
         <div class="column is-7">
           <div class="figure-card">
             <img src="static/images/main_result.png" alt="Main benchmark results" loading="lazy"/>
             <p class="figure-caption">
-              The main result compares DEVS-Gen against iterative software-agent baselines on the same benchmark, using both operational success and behavioral correctness.
+              The main result compares DEVS-Gen against iterative coding-agent baselines on the same benchmark, using both operational success and behavioral correctness.
             </p>
           </div>
         </div>
-        <div class="column is-5">
-          <article class="insight-card">
-            <h3>Key Results</h3>
-            <ul class="compact-list">
-              <li>DEVS-Gen performs competitively with fully iterative software agents on both operational and behavioral metrics, despite using a more structured generation pipeline.</li>
-              <li>With GLM-4.7, it reaches 0.95 on Score<sub>ope</sub> and 0.75 on Score<sub>beh</sub> without relying on repeated code-execution repair loops.</li>
-              <li>The main advantage is predictability: explicit structure planning breaks a brittle multi-file synthesis problem into smaller, localized generation steps.</li>
-              <!-- <li>In the ablation study, parallel synthesis gives about a 4.7x wall-clock speedup for component generation.</li> -->
-            </ul>
-          </article>
+        <div class="columns is-centered mb-5">
+          <div class="column is-12">
+            <article class="box insight-card has-background-info-light" style="border-left: 4px solid #3e8ed0; padding: 1.5rem;">
+              <h3 class="title is-6 mb-3 has-text-info-dark">KEY INSIGHTS</h3>
+              <div class="content is-small">
+                <ul style="list-style-type: none; margin-left: 0; padding-left: 0;">
+                  
+                  <li class="mb-4">
+                    <strong class="has-text-dark">Competitive:</strong> 
+                    Matches fully iterative agents (e.g., SWE-agent) using a single-pass pipeline, reaching <strong>0.95</strong> (Score<sub>ope</sub>) and <strong>0.75</strong> (Score<sub>beh</sub>) with GLM-4.7.
+                  </li>
+                  
+                  <li class="mb-4">
+                    <strong class="has-text-dark">No Debugging Wall:</strong> 
+                    Baselines success rate remains below 80% due to endless repair loops. DEVS-Gen steadily converts compute time into task completion, scaling toward 100%.
+                  </li>
+                  
+                  <li>
+                    <strong class="has-text-dark">Predictable Synthesis:</strong> 
+                    Decomposing generation into localized steps prevents compounding logic errors and avoids stalling on complex systems.
+                  </li>
+
+                </ul>
+              </div>
+            </article>
+          </div>
         </div>
       </div>
       <div class="figure-card figure-card--compact experiment-followup mt-5">
