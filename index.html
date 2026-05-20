@@ -365,8 +365,14 @@
             Logistics pipelines, hospital operations, business processes, and lab workflows all fall into this regime. They need models that can answer questions such as what happens next, what breaks under delay, and which intervention is actually better once timing and coordination constraints are enforced.
           </p>
           <p>
-            DEVS-Gen targets this setting with DEVS, a modular simulator formalism built around components, ports, and event-triggered transitions. The framework first decides the simulator structure, then fills in component behavior, and finally evaluates the resulting simulator through observable traces. The output is therefore both a benchmarkable research artifact and a reusable world model for downstream decision support.
+            DEVS-Gen targets this setting using DEVS, a modular modeling and simulation formalism built around components, ports, and event-triggered transitions. By separating structural planning from behavioral synthesis, the framework provides autonomous agents with reusable, explicit simulators that can answer what-if questions and enforce strict coordination constraints for downstream decision support.
           </p>
+          <p>
+            A trace-based benchmark is then introduced to rigorously evaluate these generated models. Crucially, because the resulting DEVS simulators are explicit and emit standardized event traces, their behavior becomes fully observable. This visibility enables us to validate the generated code against rules, ensuring temporal and causal consistency. Consequently, the output is not just a black-box prediction, but a verifiable research artifact and a reliable engine for long-horizon planning.
+          <!-- </p>
+          <p>
+            DEVS-Gen targets this setting with DEVS, a modular modeling and simulation formalism built around components, ports, and event-triggered transitions. The framework first decides the simulator structure, then fills in component behavior, and finally evaluates the resulting simulator through observable traces. The output is therefore both a benchmarkable research artifact and a reusable world model for downstream decision support.
+          </p> -->
         </div>
         <!-- <div class="overview-grid">
           <article class="overview-card">
@@ -393,7 +399,7 @@
             <div class="figure-card planning-showcase__figure">
               <img src="static/images/complete_pipeline.png" alt="Planning-oriented complete pipeline" loading="lazy"/>
               <p class="figure-caption">
-                Read the figure as a downstream-use loop: task descriptions and candidate actions go into the generated simulator; the simulator emits traces and scores; those execution traces reveal consequences that are easy to miss in text alone. The two case cards below summarize that loop for ICU treatment and wet-lab scheduling.
+                Read the figure as a downstream-use loop: DEVS-Gen generates a simulator based on the task descriptions given by the user LLM agent; LLM agent feeds candidate actions into the generated simulator; the simulator emits traces and scores; those execution traces reveal consequences that are easy to miss in text alone. The two case cards below summarize that loop for ICU treatment and wet-lab scheduling.
               </p>
             </div>
             <article class="insight-card planning-showcase__aside">
@@ -405,7 +411,7 @@
               </ul>
             </article>
           </div>
-        </div>
+        
         <div class="decision-grid">
           <article class="decision-card">
             <div class="decision-header">
@@ -464,6 +470,7 @@
             </div>
           </article>
         </div>
+        </div>
       </div>
     </div>
   </div>
@@ -475,13 +482,13 @@
       <h2 class="title is-3 has-text-centered">How DEVS-Gen Works</h2>
       <div class="section-lead">
         <p>
-          DEVS-Gen follows a staged pipeline. It first decides what modules the simulator should contain and how they communicate, then writes the behavior of each module under those interface constraints, and finally evaluates or reuses the resulting simulator through its event stream. The Strategic Airlift case below illustrates those stages end to end.
+          DEVS-Gen follows a staged pipeline. It first decides what modules the simulator should contain and how they communicate, then writes the behavior of each module under those interface constraints. Finally, the generated simulator emits a structured event stream, enabling rigorous what-if planning and live 3D visualization in Godot. The Strategic Airlift case below illustrates those stages end to end.
         </p>
       </div>
       <div class="figure-card figure-card--large">
         <img src="static/images/pipeline.png" alt="DEVS-Gen pipeline overview" loading="lazy"/>
         <p class="figure-caption">
-          The pipeline fixes structure before behavior generation, producing an executable simulator that can be benchmarked, inspected, and connected directly to a visualization frontend.
+          The pipeline fixes structure before behavioral synthesizing, producing an executable simulator that can be benchmarked, inspected, and connected directly to a visualization frontend.
         </p>
       </div>
       <div class="step-grid">
@@ -497,8 +504,8 @@
         </article>
         <article class="step-card">
           <span class="step-number">3</span>
-          <h3>Evaluation and Reuse</h3>
-          <p>Run trace-based checkers on the simulator and reuse the same event stream for benchmarks, interventions, and live visualization.</p>
+          <h3>Execution & Reuse</h3>
+          <p>Because the final output is an explicit structured simulator rather than a black box or spaghetti code, it naturally emits standardized event traces. These traces independently enable trace-based benchmarking, what-if interventions, and live visualization.</p>
         </article>
       </div>
       <h3 class="title is-4 has-text-centered mt-6">Strategic Airlift Case Study</h3>
