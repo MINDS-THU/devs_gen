@@ -6473,7 +6473,7 @@ export default function App() {
         {topTab !== 'workflow' && (
         <>
         {activeCase.id === BENCHMARK_CASE_ID && (
-          <Panel icon={<FileJson2 className="size-4" />} title="Input Specification Given to Generator (three required parts)">
+          <Panel icon={<FileJson2 className="size-4" />} title="From Benchmark: Input Specification Given to Generator">
             <div className="mb-2 rounded-lg border border-sky-200 bg-sky-50 p-2">
               <p className="text-xs font-semibold text-sky-900">Exact LLM input for this benchmark scene.</p>
               <p className="mt-1 text-[11px] text-slate-700">The three blocks below are fed together as one task requirement package.</p>

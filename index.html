@@ -511,7 +511,10 @@
       <h3 class="title is-4 has-text-centered mt-6">Strategic Airlift Case Study</h3>
       <div class="section-lead">
         <p>
-          The Strategic Airlift case study instantiates the full workflow: a benchmark specification goes in, an executable simulator comes out, checker scripts score the emitted traces, and a frontend animation listens to those same backend events.
+          To illustrate how generation and evaluation intersect, we present an end-to-end deep dive into the Strategic Airlift task from our benchmark. This walkthrough unpacks both the DEVS-Gen pipeline mechanics and our benchmark's testing protocol.
+        </p>
+        <p>
+          The showcase unfolds in four continuous phases. It begins with the natural-language specification provided by the benchmark test case. Next, based on the specification, the DEVS-Gen pipeline extracts a structural PlanTree and synthesizes an executable simulator. The benchmark evaluate this simulator by automatically scoring its emitted event traces against predefined causality and timing rules. Finally, we demonstrate downstream reusability by driving a real-time Godot 3D animation using the exact same trace stream.
         </p>
       </div>
 
