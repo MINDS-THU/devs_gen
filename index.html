@@ -486,26 +486,26 @@
         </p>
       </div>
       <div class="figure-card figure-card--large">
-        <img src="static/images/pipeline.png" alt="DEVS-Gen pipeline overview" loading="lazy"/>
+        <img src="static/images/pipeline_v2.png" alt="DEVS-Gen pipeline overview" loading="lazy"/>
         <p class="figure-caption">
           The pipeline fixes structure before behavioral synthesizing, producing an executable simulator that can be benchmarked, inspected, and connected directly to a visualization frontend.
         </p>
       </div>
-      <div class="step-grid">
+        <div class="step-grid">
         <article class="step-card">
           <span class="step-number">1</span>
           <h3>Structure Planning</h3>
-          <p>Construct a structural plan, called a PlanTree, that fixes the module decomposition, port interfaces, and coupling graph before any DEVS code is written.</p>
+          <p>Construct a structural blueprint called a PlanTree, where each node represents a model specified by a ModelPlan. This phase plans the exact port interfaces, coupling connections, and functional descriptions for every node before writing any code.</p>
         </article>
         <article class="step-card">
           <span class="step-number">2</span>
           <h3>Behavioral Synthesis</h3>
-          <p>Generate the logic of atomic and coupled models under those contracts, then assemble the full simulator bottom-up.</p>
+          <p>Guided by the PlanTree, this phase translates the planned functional descriptions into executable code. The core task is designing explicit state machines and event transitions for each component, then wiring the modular structure together.</p>
         </article>
         <article class="step-card">
           <span class="step-number">3</span>
           <h3>Execution & Reuse</h3>
-          <p>Because the final output is an explicit structured simulator rather than a black box or spaghetti code, it naturally emits standardized event traces. These traces independently enable trace-based benchmarking, what-if interventions, and live visualization.</p>
+          <p>Because the final output is an explicit structured simulator rather than a black box or spaghetti code, it naturally emits standardized event traces. These traces independently enable what-if interventions, and live visualization.</p>
         </article>
       </div>
       <h3 class="title is-4 has-text-centered mt-6">Strategic Airlift Case Study</h3>
