@@ -629,29 +629,37 @@
         </div>
         <div class="columns is-centered mb-4" >
           <div class="column is-12" >
-            <article class="box insight-card has-background-info-light" style="border-left: 4px solid #3e8ed0; padding: 1.5rem;">
-              <h3 class="title is-6 mb-3 has-text-info-dark">KEY INSIGHTS</h3>
-              <div class="content is-small">
-                <ul style="list-style-type: none; margin-left: 0; padding-left: 0;">
-                  
-                  <li class="mb-4">
-                    <strong class="has-text-dark">Competitive:</strong> 
-                    Matches fully iterative agents (e.g., SWE-agent) using a single-pass pipeline, reaching <strong>0.95</strong> (Score<sub>ope</sub>) and <strong>0.75</strong> (Score<sub>beh</sub>) with GLM-4.7.
-                  </li>
-                  
-                  <li class="mb-4">
-                    <strong class="has-text-dark">No Debugging Wall:</strong> 
-                    Baselines success rate remains below 80% due to endless repair loops. DEVS-Gen steadily converts compute time into task completion, scaling toward 100%.
-                  </li>
-                  
-                  <li>
-                    <strong class="has-text-dark">Predictable Synthesis:</strong> 
-                    Decomposing generation into localized steps prevents compounding logic errors and avoids stalling on complex systems.
-                  </li>
+<article class="box insight-card has-background-info-light h-100" style="border-left: 4px solid #3e8ed0; padding: 1.5rem; display: flex; flex-direction: column;">
+      
+      <h3 class="title is-6 mb-4 has-text-info-dark" style="border-bottom: 1px solid #c1dff0; padding-bottom: 0.5rem;">PRIMARY OUTCOMES</h3>
+      <div class="content is-small mb-5">
+        <ul style="list-style-type: none; margin-left: 0; padding-left: 0;">
+          <li class="mb-3">
+            <strong class="has-text-dark">1. Single-Pass Efficiency:</strong> 
+            As shown in Table 1, DEVS-Gen achieves state-of-the-art results without relying on costly environment execution loops. It matches or beats fully iterative agents (like SWE-agent) strictly through robust structural planning.
+          </li>
+          <li class="mb-3">
+            <strong class="has-text-dark">2. Breaking the Debugging Wall:</strong> 
+            Figure 2 highlights that baselines plateau below 80% because fixing one logical bug in flat code often introduces another. DEVS-Gen’s modularity prevents these endless repair loops.
+          </li>
+        </ul>
+      </div>
 
-                </ul>
-              </div>
-            </article>
+      <h3 class="title is-6 mb-4 mt-2 has-text-info-dark" style="border-bottom: 1px solid #c1dff0; padding-bottom: 0.5rem;">ARCHITECTURAL INSIGHTS</h3>
+      <div class="content is-small">
+        <ul style="list-style-type: none; margin-left: 0; padding-left: 0;">
+          <li class="mb-3">
+            <strong class="has-text-dark">3. Base Model Capabilities:</strong> 
+            The performance drop-off for open-weight models like Llama-4-17B reveals a strict capability threshold. Maintaining explicit port-coupling contracts requires strong instruction-following and long-context reasoning, where models like GLM-4.7 and GPT-5.2 excel.
+          </li>
+          <li>
+            <strong class="has-text-dark">4. Predictable Synthesis:</strong> 
+            By decomposing the generation task into localized component-level steps (PlanTree), the framework explicitly isolates structural topology from behavioral logic, avoiding the compounding errors common in end-to-end generation.
+          </li>
+        </ul>
+      </div>
+
+    </article>
           </div>
         </div>
       </div>
