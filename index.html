@@ -262,7 +262,7 @@
               <span class="author-block">
                 <a href="https://github.com/czyarl" target="_blank">Zheyu Chen</a><sup>1</sup>,</span>
               <span class="author-block">
-                <a href="" target="_blank">Huiteng Zhuang</a><sup>2</sup>,</span>
+                <a href="https://github.com/ZhuangHT-1201" target="_blank">Huiteng Zhuang</a><sup>2</sup>,</span>
               <span class="author-block">
                 <a href="https://github.com/PlayerIon" target="_blank">Zhuohuan Li</a><sup>3</sup>,</span>
               <span class="author-block">
@@ -521,15 +521,41 @@
       <div class="deep-dive-frame">
         <div id="benchmark-inline-app" class="deep-dive-inline-app" aria-label="Original Benchmark Deep Dive"></div>
       </div>
-      <div class="figure-card godot-followup">
-        <div class="publication-video">
-          <video poster="" id="sa-video" controls muted loop width="100%" preload="metadata">
-            <source src="static/videos/SA.mp4" type="video/mp4">
-          </video>
+      <div class="box figure-card godot-followup mt-6" style="box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 2rem; border: 1px solid #edf2f7;">
+        <div class="columns is-vcentered">
+          
+          <div class="column is-8">
+            <div style="border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
+              <video poster="" id="sa-video" controls muted loop width="100%" preload="metadata" style="display: block;">
+                <source src="static/videos/SA.mp4" type="video/mp4">
+              </video>
+            </div>
+          </div>
+          
+          <div class="column is-4 pl-5">
+            <h4 class="title is-4 mb-4">Live Visualization</h4>
+            <div class="content is-small">
+              <p class="has-text-grey-dark mb-4" style="line-height: 1.6;">
+                This Godot demo isolates the visual frontend from the simulation backend to prove the generated world model's operational independence and reliability:
+              </p>
+              <ul style="list-style-type: none; margin-left: 0; padding-left: 0;">
+                <li class="mb-4">
+                  <strong class="has-text-dark">1. The Backend (LLM-Generated):</strong> 
+                  The DEVS simulator acts as the "brain." It handles all logic, scheduling, and constraints, executing the scenario and emitting a standardized stream of discrete events.
+                </li>
+                <li class="mb-4">
+                  <strong class="has-text-dark">2. The Frontend (Agent-Generated):</strong> 
+                  An LLM agent automatically builds the Godot 3D frontend. By parsing the DEVS PlanTree hierarchy and initial requirements, the agent designs the visual entities and their specific event-listening logic.
+                </li>
+                <li>
+                  <strong class="has-text-dark">3. The Integration:</strong> 
+                  Godot acts as a pure listener. As the backend simulator fires traces (e.g., <code>flight_departed</code>, <code>cargo_unloaded</code>), the frontend maps these events directly into 3D visual updates in real time.
+                </li>
+              </ul>
+            </div>
+          </div>
+          
         </div>
-        <p class="figure-caption">
-          Strategic Airlift demo: the Godot frontend reacts directly to event traces emitted by the generated simulator in real time.
-        </p>
       </div>
     </div>
   </div>
@@ -573,7 +599,7 @@
           </ul>
         </div>
         <div class="figure-card">
-          <img src="static/images/benchmark_scenarios.png" alt="Benchmark scenarios" loading="lazy"/>
+          <img src="static/images/benchmark_scenarios.png" alt="Benchmark scenarios" loading="lazy" style="width: 80%; display: block; margin: 0 auto;"/>
           <p class="figure-caption">
             The benchmark spans seven discrete-event scenarios across networking, service operations, banking, transport, logistics, and bio-math dynamics, from compact protocols such as ABP to larger systems such as Strategic Airlift.
           </p>
@@ -584,16 +610,25 @@
 
       <h3 class="title is-4 mb-4">Main Results</h3>
       <div class="columns result-layout is-variable is-4">
-        <div class="column is-7">
+        <div class="column is-8" style="display: flex; flex-direction: column; gap: 2rem;">
+    
           <div class="figure-card">
-            <img src="static/images/main_result.png" alt="Main benchmark results" loading="lazy"/>
-            <p class="figure-caption">
+            <img src="static/images/main_result.png" alt="Main benchmark results" loading="lazy" style="width: 100%; height: auto;"/>
+            <p class="figure-caption mt-2">
               The main result compares DEVS-Gen against iterative coding-agent baselines on the same benchmark, using both operational success and behavioral correctness.
             </p>
           </div>
+          
+          <div class="figure-card">
+            <img src="static/images/tts_cdf_all.png" alt="Time-to-success comparison" loading="lazy" style="width: 100%; height: auto;"/>
+            <p class="figure-caption mt-2">
+              The time-to-success view complements the main benchmark table by showing how quickly methods accumulate solved tasks. DEVS-Gen continues to convert time into completed benchmark cases, while iterative baselines more often stall in debugging-and-repair loops.
+            </p>
+          </div>
+          
         </div>
-        <div class="columns is-centered mb-5">
-          <div class="column is-12">
+        <div class="columns is-centered mb-4" >
+          <div class="column is-12" >
             <article class="box insight-card has-background-info-light" style="border-left: 4px solid #3e8ed0; padding: 1.5rem;">
               <h3 class="title is-6 mb-3 has-text-info-dark">KEY INSIGHTS</h3>
               <div class="content is-small">
@@ -620,12 +655,7 @@
           </div>
         </div>
       </div>
-      <div class="figure-card figure-card--compact experiment-followup mt-5">
-        <img src="static/images/tts_cdf_all.png" alt="Time-to-success comparison" loading="lazy"/>
-        <p class="figure-caption">
-          The time-to-success view complements the main benchmark table by showing how quickly methods accumulate solved tasks. DEVS-Gen continues to convert time into completed benchmark cases, while iterative baselines more often stall in debugging-and-repair loops.
-        </p>
-      </div>
+      
     </div>
   </div>
 </section>
