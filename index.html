@@ -482,7 +482,7 @@
       <h2 class="title is-3 has-text-centered">How DEVS-Gen Works</h2>
       <div class="section-lead">
         <p>
-          DEVS-Gen follows a staged pipeline. It first decides what modules the simulator should contain and how they communicate, then writes the behavior of each module under those interface constraints. Finally, the generated simulator emits a structured event stream, enabling rigorous what-if planning and live 3D visualization in Godot. The Strategic Airlift case below illustrates those stages end to end.
+          DEVS-Gen follows a staged pipeline. It first decides what modules the simulator should contain and how they communicate, then writes the behavior of each module under those interface constraints. Finally, the generated simulator emits a structured event stream, enabling rigorous what-if planning and live visualization in Godot. The Strategic Airlift case below illustrates those stages end to end.
         </p>
       </div>
       <div class="figure-card figure-card--large">
@@ -514,7 +514,7 @@
           To illustrate how generation and evaluation intersect, we present an end-to-end deep dive into the Strategic Airlift task from our benchmark. This walkthrough unpacks both the DEVS-Gen pipeline mechanics and our benchmark's testing protocol.
         </p>
         <p>
-          The showcase unfolds in four continuous phases. It begins with the natural-language specification provided by the benchmark test case. Next, based on the specification, the DEVS-Gen pipeline extracts a structural PlanTree and synthesizes an executable simulator. The benchmark evaluate this simulator by automatically scoring its emitted event traces against predefined causality and timing rules. Finally, we demonstrate downstream reusability by driving a real-time Godot 3D animation using the exact same trace stream.
+          The showcase unfolds in four continuous phases. It begins with the natural-language specification provided by the benchmark test case. Next, based on the specification, the DEVS-Gen pipeline extracts a structural PlanTree and synthesizes an executable simulator. The benchmark evaluate this simulator by automatically scoring its emitted event traces against predefined causality and timing rules. Finally, we demonstrate downstream reusability by driving a real-time Godot animation using the exact same trace stream.
         </p>
       </div>
 
@@ -545,11 +545,11 @@
                 </li>
                 <li class="mb-4">
                   <strong class="has-text-dark">2. The Frontend (Agent-Generated):</strong> 
-                  An LLM agent automatically builds the Godot 3D frontend. By parsing the DEVS PlanTree hierarchy and initial requirements, the agent designs the visual entities and their specific event-listening logic.
+                  A general coding agent (e.g. Claude Code) equippted with Godot game development skill automatically builds a Godot 2D or 3D frontend. By parsing the DEVS PlanTree hierarchy and initial requirements, the agent designs the visual entities and their specific event-listening logic.
                 </li>
                 <li>
                   <strong class="has-text-dark">3. The Integration:</strong> 
-                  Godot acts as a pure listener. As the backend simulator fires traces (e.g., <code>flight_departed</code>, <code>cargo_unloaded</code>), the frontend maps these events directly into 3D visual updates in real time.
+                  Godot frontend acts as a pure listener. As the backend simulator fires traces (e.g., <code>flight_departed</code>, <code>cargo_unloaded</code>), the frontend maps these events directly into visual updates of the scene in real time.
                 </li>
               </ul>
             </div>
