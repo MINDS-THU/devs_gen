@@ -1,0 +1,665 @@
+{
+  "id": "icu",
+  "title": "ICU Case",
+  "tag": "A constructed workflow demo case.",
+  "inputText": "You are covering a simplified ICU overnight. A patient with suspected sepsis has six hours until the next full team review, and you need to choose the best treatment plan to maximize the patient's condition at the end of that period.\n\nRight now the patient has low blood pressure, a high infection burden, mild kidney stress, and low fluid overload risk. You may use three kinds of interventions during the first three hours: vasopressors, IV fluids, and antibiotics. Vasopressors raise blood pressure immediately; kidney stress worsening is more likely when vasopressor exposure is repeated. IV fluids do not help immediately, but they usually improve blood pressure starting one hour later and continue helping for about two hours (sometimes closer to three). Antibiotics do not reduce the infection right away; they usually begin lowering infection burden about two hours after they are given. If infection stays high while blood pressure is low, kidney stress gets worse over time. Repeated fluid use can also create fluid overload, which harms the patient later.\n\nYou are considering three plans:\n- Plan 1: vasopressor at hour 0, vasopressor at hour 1, then wait\n- Plan 2: antibiotic at hour 0, IV fluids at hour 1, then wait\n- Plan 3: IV fluids at hour 0, vasopressor at hour 1, antibiotic at hour 2\n\nAt the end of hour 6, the patient is scored as follows: stable blood pressure is worth 40 points; infection burden contributes 30 points if low, 15 if medium, and 0 if high; kidney stress gives a penalty of 0 for mild, 15 for moderate, and 35 for severe; fluid overload gives an additional 10-point penalty.\n\nWrite a description of the patient-treatment dynamics that should be modeled, then decide which plan is best.",
+  "sources": {
+    "input": "devs_demo/demo_cases/ori_scenes.md (ICU scene)",
+    "plan": "devs_reasoning_app/outputs_v54_icu/scene_1_spec.yaml",
+    "code": "devs_reasoning_app/working_dirs/scene1_gen_v3/tasks/icu_sepsis_treatment/devs_project/",
+    "eval": "devs_reasoning_app/outputs_v54_icu/scene_1_direct_answer.md + devs_reasoning_app/outputs_v54_icu/scene_1_assisted_answer.md"
+  },
+  "planTree": {
+    "id": "icu-root",
+    "name": "icu_sepsis_treatment",
+    "type": "coupled",
+    "summary": "Batch coordinator + deterministic simulator + trace/result logging over 6-hour dynamics",
+    "initArgs": [
+      "simulation_id",
+      "horizon_hours",
+      "state_update_interval_hours",
+      "initial_state",
+      "model_parameters"
+    ],
+    "initArgsTyped": [
+      {
+        "name": "simulation_id",
+        "type": "str"
+      },
+      {
+        "name": "horizon_hours",
+        "type": "int"
+      },
+      {
+        "name": "state_update_interval_hours",
+        "type": "int"
+      },
+      {
+        "name": "initial_state",
+        "type": "dict"
+      },
+      {
+        "name": "model_parameters",
+        "type": "dict"
+      }
+    ],
+    "ports": {
+      "input": [
+        "plans_in"
+      ],
+      "output": []
+    },
+    "portsTyped": {
+      "input": [
+        {
+          "name": "plans_in",
+          "type": "list"
+        }
+      ],
+      "output": []
+    },
+    "details": {
+      "function": "Root coupled model receives externally supplied plan batches, dispatches each plan through the same deterministic simulator, aggregates plan results, and emits final comparison result.",
+      "logging": "Key logs: Batch Received, trace, Plan Result Prepared, Final Result Emitted, result.",
+      "schemas": "plans_in:list -> plan_result:{final_state,final_score} -> result:{plans,best_plan_id}"
+    },
+    "children": [
+      {
+        "id": "icu-batch",
+        "name": "plan_batch_coordinator",
+        "type": "atomic",
+        "summary": "Validates batch payload, dispatches plans, forwards per-plan results",
+        "initArgs": [
+          "simulation_id",
+          "horizon_hours",
+          "state_update_interval_hours",
+          "initial_state",
+          "model_parameters"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "simulation_id",
+            "type": "str"
+          },
+          {
+            "name": "horizon_hours",
+            "type": "int"
+          }
+        ],
+        "ports": {
+          "input": [
+            "plans_in",
+            "plan_result_in"
+          ],
+          "output": [
+            "plan_out",
+            "batch_meta_out",
+            "plan_result_out"
+          ]
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "plans_in",
+              "type": "list"
+            },
+            {
+              "name": "plan_result_in",
+              "type": "dict"
+            }
+          ],
+          "output": [
+            {
+              "name": "plan_out",
+              "type": "dict"
+            },
+            {
+              "name": "batch_meta_out",
+              "type": "dict"
+            },
+            {
+              "name": "plan_result_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "details": {
+          "function": "Consumes one plan batch, preserves deterministic order, and coordinates full batch completion.",
+          "logging": "Emits Batch Received / Plan Result Received / Batch Completed.",
+          "schemas": "plans_in -> plan_out + batch_meta_out; plan_result_in -> plan_result_out"
+        },
+        "children": []
+      },
+      {
+        "id": "icu-sim",
+        "name": "plan_simulator",
+        "type": "atomic",
+        "summary": "Deterministic hourly transition + scoring for each plan",
+        "initArgs": [
+          "simulation_id",
+          "horizon_hours",
+          "state_update_interval_hours",
+          "initial_state",
+          "model_parameters"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "simulation_id",
+            "type": "str"
+          },
+          {
+            "name": "horizon_hours",
+            "type": "int"
+          }
+        ],
+        "ports": {
+          "input": [
+            "plan_in"
+          ],
+          "output": [
+            "trace_out",
+            "plan_result_out"
+          ]
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "plan_in",
+              "type": "dict"
+            }
+          ],
+          "output": [
+            {
+              "name": "trace_out",
+              "type": "dict"
+            },
+            {
+              "name": "plan_result_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "details": {
+          "function": "Applies delayed vasopressor/fluid/antibiotic effects, low-BP+high-infection kidney hazard, and end-of-hour scoring over horizon.",
+          "logging": "Emits trace per hour and one plan result per plan.",
+          "schemas": "plan_in:{plan_id,action_timeline} -> plan_result_out:{final_state,final_score,score_breakdown}"
+        },
+        "children": []
+      },
+      {
+        "id": "icu-trace",
+        "name": "trace_logger",
+        "type": "atomic",
+        "summary": "Pass-through trace event logger",
+        "initArgs": [
+          "simulation_id"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "simulation_id",
+            "type": "str"
+          }
+        ],
+        "ports": {
+          "input": [
+            "trace_in"
+          ],
+          "output": []
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "trace_in",
+              "type": "dict"
+            }
+          ],
+          "output": []
+        },
+        "details": {
+          "function": "Receives all trace events from simulator and logs them in deterministic order.",
+          "logging": "Emits trace events only.",
+          "schemas": "trace_in -> log(trace)"
+        },
+        "children": []
+      },
+      {
+        "id": "icu-agg",
+        "name": "result_aggregator",
+        "type": "atomic",
+        "summary": "Collects plan results and emits single batch result",
+        "initArgs": [
+          "simulation_id",
+          "horizon_hours"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "simulation_id",
+            "type": "str"
+          },
+          {
+            "name": "horizon_hours",
+            "type": "int"
+          }
+        ],
+        "ports": {
+          "input": [
+            "batch_meta_in",
+            "plan_result_in"
+          ],
+          "output": [
+            "result_out"
+          ]
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "batch_meta_in",
+              "type": "dict"
+            },
+            {
+              "name": "plan_result_in",
+              "type": "dict"
+            }
+          ],
+          "output": [
+            {
+              "name": "result_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "details": {
+          "function": "Deterministically sorts/compares plan results and emits one result event with best_plan_id.",
+          "logging": "Emits Final Result Prepared and result.",
+          "schemas": "batch_meta + plan_results -> result:{plans,best_plan_id}"
+        },
+        "children": []
+      },
+      {
+        "id": "icu-rlog",
+        "name": "result_logger",
+        "type": "atomic",
+        "summary": "Final result logger",
+        "initArgs": [
+          "simulation_id"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "simulation_id",
+            "type": "str"
+          }
+        ],
+        "ports": {
+          "input": [
+            "result_in"
+          ],
+          "output": []
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "result_in",
+              "type": "dict"
+            }
+          ],
+          "output": []
+        },
+        "details": {
+          "function": "Logs the final result event exactly once.",
+          "logging": "Emits result event to output stream.",
+          "schemas": "result_in -> log(result)"
+        },
+        "children": []
+      }
+    ]
+  },
+  "codeGraph": {
+    "nodes": [
+      {
+        "id": "c1",
+        "label": "icu_sepsis_treatment (coupled)",
+        "modelType": "coupled",
+        "x": 440,
+        "y": 70,
+        "ports": {
+          "in": [
+            "plans_in"
+          ],
+          "out": []
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "plans_in",
+              "type": "list"
+            }
+          ],
+          "out": []
+        },
+        "file": "icu_sepsis_treatment.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        simulation_id: str,\n        horizon_hours: int,\n        state_update_interval_hours: int,\n        initial_state: dict,\n        model_parameters: dict,\n    ):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            simulation_id (str): Opaque batch identifier copied into sub-model configurations and logs.\n            horizon_hours (int): Batch simulation horizon in hours. Expected value for this task is 6.\n            state_update_interval_hours (int): State update interval in hours. Expected value for this task is 1.\n            initial_state (dict): Shared initial patient state for all evaluated plans.\n                blood_pressure (str): Initial blood pressure category; expected \"low\" or \"stable\".\n                infection_burden (str): Initial infection burden category; expected \"high\", \"medium\", or \"low\".\n                kidney_stress (str): Initial kidney stress category; expected \"mild\", \"moderate\", or \"severe\".\n                fluid_overload (bool): Initial fluid overload status.\n            model_parameters (dict): Deterministic rule parameters used by coordinator and simulator.\n                fluid_support_delay_hours (int): Delay from IV fluid administration to support start.\n                fluid_support_duration_hours (int): Duration of fluid-support activity once started.\n                antibiotic_delay_hours (int): Delay from antibiotic administration to effect activation.\n                max_intervention_hour (int): Latest hour allowed to contain non-empty interventions.\n                repeated_vasopressor_toxicity_rule (str): Human-readable deterministic rule description.\n                fluid_overload_rule (str): Human-readable deterministic rule description.\n                infection_reduction_rule (str): Human-readable deterministic rule description.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        self.param = {\n            \"component_names\": [\n                \"batch_coordinator\",\n                \"plan_simulator\",\n                \"trace_logger\",\n                \"result_aggregator\",\n                \"result_logger\",\n            ],\n            \"evaluator_count\": 1,\n            \"architecture\": \"single_plan_simulator_with_batch_coordination_and_result_aggregation\",\n        }\n\n        self.add_in_port(Port(list, \"plans_in\"))\n\n        batch_coordinator = plan_batch_coordinator(\n            name=\"batch_coordinator\",\n            parent=self,\n            simulation_id=simulation_id,\n            horizon_hours=horizon_hours,\n            state_update_interval_hours=state_update_interval_hours,\n            initial_state=initial_state,\n            model_parameters=model_parameters,\n        )\n        simulator = plan_simulator(\n            name=\"plan_simulator\",\n            parent=self,\n            simulation_id=simulation_id,\n            horizon_hours=horizon_hours,\n            state_update_interval_hours=state_update_interval_hours,\n            initial_state=initial_state,\n            model_parameters=model_parameters,\n        )\n        trace_log = trace_logger(\n            name=\"trace_logger\",\n            parent=self,\n            simulation_id=simulation_id,\n        )\n        aggregator = result_aggregator(\n            name=\"result_aggregator\",\n            parent=self,\n            simulation_id=simulation_id,\n            horizon_hours=horizon_hours,\n        )\n        final_result_logger = result_logger(\n            name=\"result_logger\",\n            parent=self,\n            simulation_id=simulation_id,\n        )\n\n        self.add_component(batch_coordinator)\n        self.add_component(simulator)\n        self.add_component(trace_log)\n        self.add_component(aggregator)\n        self.add_component(final_result_logger)\n\n        self.add_coupling(self.input[\"plans_in\"], batch_coordinator.input[\"plans_in\"])\n\n        self.add_coupling(batch_coordinator.output[\"plan_out\"], simulator.input[\"plan_in\"])\n        self.add_coupling(batch_coordinator.output[\"batch_meta_out\"], aggregator.input[\"batch_meta_in\"])\n        self.add_coupling(simulator.output[\"trace_out\"], trace_log.input[\"trace_in\"])\n        self.add_coupling(simulator.output[\"plan_result_out\"], batch_coordinator.input[\"plan_result_in\"])\n        self.add_coupling(batch_coordinator.output[\"plan_result_out\"], aggregator.input[\"plan_result_in\"])\n        self.add_coupling(aggregator.output[\"result_out\"], final_result_logger.input[\"result_in\"])\n\n"
+        }
+      },
+      {
+        "id": "c2",
+        "label": "plan_batch_coordinator",
+        "modelType": "atomic",
+        "x": 170,
+        "y": 240,
+        "ports": {
+          "in": [
+            "plans_in",
+            "plan_result_in"
+          ],
+          "out": [
+            "plan_out",
+            "batch_meta_out",
+            "plan_result_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "plans_in",
+              "type": "list"
+            },
+            {
+              "name": "plan_result_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "plan_out",
+              "type": "dict"
+            },
+            {
+              "name": "batch_meta_out",
+              "type": "dict"
+            },
+            {
+              "name": "plan_result_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "icu_sepsis_treatment_libs/plan_batch_coordinator.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        simulation_id: str,\n        horizon_hours: int,\n        state_update_interval_hours: int,\n        initial_state: dict,\n        model_parameters: dict\n    ):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            simulation_id (str): Opaque batch identifier copied into logs.\n            horizon_hours (int): Batch simulation horizon. Must be 6 for this task.\n            state_update_interval_hours (int): State update interval. Must be 1 for this task.\n            initial_state (dict): Starting patient state shared across independently evaluated plans.\n                blood_pressure (str): Initial blood pressure category, \"low\" or \"stable\".\n                infection_burden (str): Initial infection burden category, \"high\", \"medium\", or \"low\".\n                kidney_stress (str): Initial kidney stress category, \"mild\", \"moderate\", or \"severe\".\n                fluid_overload (bool): Initial fluid overload flag.\n            model_parameters (dict): Deterministic model parameter contract forwarded conceptually to sibling simulators.\n                fluid_support_delay_hours (int): Delay before fluid support starts.\n                fluid_support_duration_hours (int): Duration of fluid support.\n                antibiotic_delay_hours (int): Delay before antibiotic effect starts.\n                max_intervention_hour (int): Maximum hour at which interventions are allowed.\n                repeated_vasopressor_toxicity_rule (str): Documentation string for deterministic vasopressor toxicity rule.\n                fluid_overload_rule (str): Documentation string for deterministic fluid overload rule.\n                infection_reduction_rule (str): Documentation string for deterministic infection reduction rule.\n        \"\"\"\n        import json\n        import sys\n\n        super().__init__(name)\n        self.parent = parent\n\n        self.add_in_port(Port(list, \"plans_in\"))\n        self.add_in_port(Port(dict, \"plan_result_in\"))\n        self.add_out_port(Port(dict, \"plan_out\"))\n        self.add_out_port(Port(dict, \"batch_meta_out\"))\n        self.add_out_port(Port(dict, \"plan_result_out\"))\n\n        self.simulation_id = simulation_id\n        self.horizon_hours = horizon_hours\n        self.state_update_interval_hours = state_update_interval_hours\n        self.initial_state = {\n            \"blood_pressure\": initial_state[\"blood_pressure\"],\n            \"infection_burden\": initial_state[\"infection_burden\"],\n            \"kidney_stress\": initial_state[\"kidney_stress\"],\n            \"fluid_overload\": initial_state[\"fluid_overload\"]\n        }\n        self.model_parameters = {\n            \"fluid_support_delay_hours\": model_parameters[\"fluid_support_delay_hours\"],\n            \"fluid_support_duration_hours\": model_parameters[\"fluid_support_duration_hours\"],\n            \"antibiotic_delay_hours\": model_parameters[\"antibiotic_delay_hours\"],\n            \"max_intervention_hour\": model_parameters[\"max_intervention_hour\"],\n            \"repeated_vasopressor_toxicity_rule\": model_parameters[\"repeated_vasopressor_toxicity_rule\"],\n            \"fluid_overload_rule\": model_parameters[\"fluid_overload_rule\"],\n            \"infection_reduction_rule\": model_parameters[\"infection_reduction_rule\"]\n        }\n\n        self.param = {\n            \"allowed_actions\": [\"vasopressor\", \"iv_fluids\", \"antibiotic\"],\n            \"allowed_blood_pressure\": [\"low\", \"stable\"],\n            \"allowed_infection_burden\": [\"high\", \"medium\", \"low\"],\n            \"allowed_kidney_stress\": [\"mild\", \"moderate\", \"severe\"],\n            \"expected_horizon_hours\": 6,\n            \"expected_state_update_interval_hours\": 1\n        }\n\n        self.batch_received = False\n        self.batch_dispatched = False\n        self.batch_aborted = False\n        self.plan_order = []\n        self.expected_plan_count = 0\n        self.received_plan_results = 0\n        self.forwarded_plan_results = 0\n        self.received_result_plan_ids = []\n        self.pending_plan_outputs = []\n        self.pending_batch_meta = None\n        self.pending_result_outputs = []\n        self.last_error = None\n\n        self.hold_in(\"WAITING\", float(\"inf\"))\n\n        print(json.dumps({\n                \"event\": \"Model Created\",\n                \"model\": self.name,\n                \"simulation_id\": self.simulation_id,\n                \"horizon_hours\": self.horizon_hours,\n                \"state_update_interval_hours\": self.state_update_interval_hours,\n                \"initial_state\": self.initial_state,\n                \"model_parameters\": self.model_parameters,\n                \"param\": self.param,\n                \"time\": get_current_time()\n            }), file=sys.stderr, flush=True)",
+          "initialize": "    def initialize(self):\n        import json\n        import sys\n\n        self.batch_received = False\n        self.batch_dispatched = False\n        self.batch_aborted = False\n        self.plan_order = []\n        self.expected_plan_count = 0\n        self.received_plan_results = 0\n        self.forwarded_plan_results = 0\n        self.received_result_plan_ids = []\n        self.pending_plan_outputs = []\n        self.pending_batch_meta = None\n        self.pending_result_outputs = []\n        self.last_error = None\n\n        self.hold_in(\"WAITING\", float(\"inf\"))\n        print(json.dumps({\n                \"event\": \"Model Initialized\",\n                \"model\": self.name,\n                \"simulation_id\": self.simulation_id,\n                \"time\": get_current_time()\n            }), file=sys.stderr, flush=True)",
+          "_copy_initial_state": "    def _copy_initial_state(self) -> dict:\n        return {\n            \"blood_pressure\": self.initial_state[\"blood_pressure\"],\n            \"infection_burden\": self.initial_state[\"infection_burden\"],\n            \"kidney_stress\": self.initial_state[\"kidney_stress\"],\n            \"fluid_overload\": self.initial_state[\"fluid_overload\"]\n        }",
+          "_validate_and_normalize_plan_batch": "    def _validate_and_normalize_plan_batch(self, plans: list) -> tuple[bool, list, dict | None]:\n        if self.horizon_hours != self.param[\"expected_horizon_hours\"]:\n            return False, [], {\n                \"event\": \"Batch Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"invalid_horizon_hours\",\n                \"horizon_hours\": self.horizon_hours,\n                \"expected_horizon_hours\": self.param[\"expected_horizon_hours\"],\n                \"time\": get_current_time()\n            }\n\n        if self.state_update_interval_hours != self.param[\"expected_state_update_interval_hours\"]:\n            return False, [], {\n                \"event\": \"Batch Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"invalid_state_update_interval_hours\",\n                \"state_update_interval_hours\": self.state_update_interval_hours,\n                \"expected_state_update_interval_hours\": self.param[\"expected_state_update_interval_hours\"],\n                \"time\": get_current_time()\n            }\n\n        if not isinstance(plans, list):\n            return False, [], {\n                \"event\": \"Batch Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"plans_in_not_list\",\n                \"time\": get_current_time()\n            }\n\n        normalized = []\n        seen_plan_ids = []\n\n        for index, plan in enumerate(plans):\n            if not isinstance(plan, dict):\n                return False, [], {\n                    \"event\": \"Batch Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"plan_not_dict\",\n                    \"plan_index\": index,\n                    \"time\": get_current_time()\n                }\n\n            if \"plan_id\" not in plan or \"action_timeline\" not in plan:\n                return False, [], {\n                    \"event\": \"Batch Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"missing_plan_fields\",\n                    \"plan_index\": index,\n                    \"time\": get_current_time()\n                }\n\n            plan_id = plan[\"plan_id\"]\n            action_timeline = plan[\"action_timeline\"]\n\n            if not isinstance(plan_id, str):\n                return False, [], {\n                    \"event\": \"Batch Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"plan_id_not_str\",\n                    \"plan_index\": index,\n                    \"time\": get_current_time()\n                }\n\n            if plan_id in seen_plan_ids:\n                return False, [], {\n                    \"event\": \"Batch Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"duplicate_plan_id\",\n                    \"plan_id\": plan_id,\n                    \"plan_index\": index,\n                    \"time\": get_current_time()\n                }\n\n            if not isinstance(action_timeline, dict):\n                return False, [], {\n                    \"event\": \"Batch Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"action_timeline_not_dict\",\n                    \"plan_id\": plan_id,\n                    \"time\": get_current_time()\n                }\n\n            normalized_timeline = {}\n            max_intervention_hour = self.model_parameters[\"max_intervention_hour\"]\n\n            for hour_key, actions in action_timeline.items():\n                if not isinstance(hour_key, str):\n                    return False, [], {\n                        \"event\": \"Batch Validation Error\",\n                        \"simulation_id\": self.simulation_id,\n                        \"reason\": \"hour_key_not_str\",\n                        \"plan_id\": plan_id,\n                        \"time\": get_current_time()\n                    }\n\n                try:\n                    hour_int = int(hour_key)\n                except Exception:\n                    return False, [], {\n                        \"event\": \"Batch Validation Error\",\n                        \"simulation_id\": self.simulation_id,\n                        \"reason\": \"hour_key_not_integer_string\",\n                        \"plan_id\": plan_id,\n                        \"hour\": hour_key,\n                        \"time\": get_current_time()\n                    }\n\n                if str(hour_int) != hour_key:\n                    return False, [], {\n                        \"event\": \"Batch Validation Error\",\n                        \"simulation_id\": self.simulation_id,\n                        \"reason\": \"hour_key_not_canonical_integer_string\",\n                        \"plan_id\": plan_id,\n                        \"hour\": hour_key,\n                        \"time\": get_current_time()\n                    }\n\n                if hour_int < 0 or hour_int > max_intervention_hour:\n                    return False, [], {\n                        \"event\": \"Batch Validation Error\",\n                        \"simulation_id\": self.simulation_id,\n                        \"reason\": \"hour_out_of_allowed_range\",\n                        \"plan_id\": plan_id,\n                        \"hour\": hour_int,\n                        \"max_intervention_hour\": max_intervention_hour,\n                        \"time\": get_current_time()\n                    }\n\n                if not isinstance(actions, list):\n                    return False, [], {\n                        \"event\": \"Batch Validation Error\",\n                        \"simulation_id\": self.simulation_id,\n                        \"reason\": \"actions_not_list\",\n                        \"plan_id\": plan_id,\n                        \"hour\": hour_int,\n                        \"time\": get_current_time()\n                    }\n\n                normalized_actions = []\n                seen_actions = []\n                for action in actions:\n                    if not isinstance(action, str):\n                        return False, [], {\n                            \"event\": \"Batch Validation Error\",\n                            \"simulation_id\": self.simulation_id,\n                            \"reason\": \"action_not_str\",\n                            \"plan_id\": plan_id,\n                            \"hour\": hour_int,\n                            \"time\": get_current_time()\n                        }\n                    if action not in self.param[\"allowed_actions\"]:\n                        return False, [], {\n                            \"event\": \"Batch Validation Error\",\n                            \"simulation_id\": self.simulation_id,\n                            \"reason\": \"unknown_action\",\n                            \"plan_id\": plan_id,\n                            \"hour\": hour_int,\n                            \"action\": action,\n                            \"time\": get_current_time()\n                        }\n                    if action in seen_actions:\n                        return False, [], {\n                            \"event\": \"Batch Validation Error\",\n                            \"simulation_id\": self.simulation_id,\n                            \"reason\": \"duplicate_action_same_hour\",\n                            \"plan_id\": plan_id,\n                            \"hour\": hour_int,\n                            \"action\": action,\n                            \"time\": get_current_time()\n                        }\n                    seen_actions.append(action)\n                    normalized_actions.append(action)\n\n                normalized_timeline[str(hour_int)] = normalized_actions\n\n            for hour_int in range(0, max_intervention_hour + 1):\n                hour_key = str(hour_int)\n                if hour_key not in normalized_timeline:\n                    normalized_timeline[hour_key] = []\n\n            normalized.append(\n                {\n                    \"plan_id\": plan_id,\n                    \"action_timeline\": normalized_timeline\n                }\n            )\n            seen_plan_ids.append(plan_id)\n\n        return True, normalized, None",
+          "_validate_plan_result": "    def _validate_plan_result(self, result_payload: dict) -> tuple[bool, dict | None]:\n        if not isinstance(result_payload, dict):\n            return False, {\n                \"event\": \"Plan Result Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"result_not_dict\",\n                \"time\": get_current_time()\n            }\n\n        required_top = [\"plan_id\", \"final_state\", \"final_score\", \"score_breakdown\"]\n        for key in required_top:\n            if key not in result_payload:\n                return False, {\n                    \"event\": \"Plan Result Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"missing_result_field\",\n                    \"missing_field\": key,\n                    \"time\": get_current_time()\n                }\n\n        if not isinstance(result_payload[\"plan_id\"], str):\n            return False, {\n                \"event\": \"Plan Result Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"plan_id_not_str\",\n                \"time\": get_current_time()\n            }\n\n        if result_payload[\"plan_id\"] not in self.plan_order:\n            return False, {\n                \"event\": \"Plan Result Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"unknown_plan_id_result\",\n                \"plan_id\": result_payload[\"plan_id\"],\n                \"time\": get_current_time()\n            }\n\n        final_state = result_payload[\"final_state\"]\n        if not isinstance(final_state, dict):\n            return False, {\n                \"event\": \"Plan Result Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"final_state_not_dict\",\n                \"plan_id\": result_payload[\"plan_id\"],\n                \"time\": get_current_time()\n            }\n\n        for field in [\"blood_pressure\", \"infection_burden\", \"kidney_stress\", \"fluid_overload\"]:\n            if field not in final_state:\n                return False, {\n                    \"event\": \"Plan Result Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"missing_final_state_field\",\n                    \"plan_id\": result_payload[\"plan_id\"],\n                    \"missing_field\": field,\n                    \"time\": get_current_time()\n                }\n\n        if final_state[\"blood_pressure\"] not in self.param[\"allowed_blood_pressure\"]:\n            return False, {\n                \"event\": \"Plan Result Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"invalid_blood_pressure\",\n                \"plan_id\": result_payload[\"plan_id\"],\n                \"time\": get_current_time()\n            }\n\n        if final_state[\"infection_burden\"] not in self.param[\"allowed_infection_burden\"]:\n            return False, {\n                \"event\": \"Plan Result Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"invalid_infection_burden\",\n                \"plan_id\": result_payload[\"plan_id\"],\n                \"time\": get_current_time()\n            }\n\n        if final_state[\"kidney_stress\"] not in self.param[\"allowed_kidney_stress\"]:\n            return False, {\n                \"event\": \"Plan Result Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"invalid_kidney_stress\",\n                \"plan_id\": result_payload[\"plan_id\"],\n                \"time\": get_current_time()\n            }\n\n        if not isinstance(final_state[\"fluid_overload\"], bool):\n            return False, {\n                \"event\": \"Plan Result Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"fluid_overload_not_bool\",\n                \"plan_id\": result_payload[\"plan_id\"],\n                \"time\": get_current_time()\n            }\n\n        if not isinstance(result_payload[\"final_score\"], int):\n            return False, {\n                \"event\": \"Plan Result Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"final_score_not_int\",\n                \"plan_id\": result_payload[\"plan_id\"],\n                \"time\": get_current_time()\n            }\n\n        score_breakdown = result_payload[\"score_breakdown\"]\n        if not isinstance(score_breakdown, dict):\n            return False, {\n                \"event\": \"Plan Result Validation Error\",\n                \"simulation_id\": self.simulation_id,\n                \"reason\": \"score_breakdown_not_dict\",\n                \"plan_id\": result_payload[\"plan_id\"],\n                \"time\": get_current_time()\n            }\n\n        for field in [\"blood_pressure_points\", \"infection_points\", \"kidney_penalty\", \"fluid_overload_penalty\"]:\n            if field not in score_breakdown or not isinstance(score_breakdown[field], int):\n                return False, {\n                    \"event\": \"Plan Result Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"invalid_score_breakdown_field\",\n                    \"plan_id\": result_payload[\"plan_id\"],\n                    \"missing_or_invalid_field\": field,\n                    \"time\": get_current_time()\n                }\n\n        return True, None",
+          "lambdaf": "    def lambdaf(self):\n        if self.phase == \"DISPATCH\":\n            if self.pending_batch_meta is not None:\n                self.output[\"batch_meta_out\"].add(self.pending_batch_meta)\n            for payload in self.pending_plan_outputs:\n                self.output[\"plan_out\"].add(payload)\n\n        elif self.phase == \"FORWARD_RESULT\":\n            for payload in self.pending_result_outputs:\n                self.output[\"plan_result_out\"].add(payload)",
+          "deltint": "    def deltint(self):\n        import json\n        import sys\n\n        old_phase = self.phase\n        _ = self.ta()\n\n        if old_phase == \"DISPATCH\":\n            self.batch_dispatched = True\n            print(json.dumps({\n                    \"event\": \"Batch Dispatch Prepared\",\n                    \"simulation_id\": self.simulation_id,\n                    \"plan_order\": self.plan_order,\n                    \"plan_count\": self.expected_plan_count,\n                    \"time\": get_current_time()\n                }), file=sys.stderr, flush=True)\n            self.pending_plan_outputs = []\n            self.pending_batch_meta = None\n\n            if self.expected_plan_count == 0:\n                self.hold_in(\"DONE\", float(\"inf\"))\n                print(json.dumps({\n                        \"event\": \"Batch Completed\",\n                        \"simulation_id\": self.simulation_id,\n                        \"expected_plan_count\": self.expected_plan_count,\n                        \"received_plan_results\": self.received_plan_results,\n                        \"forwarded_plan_results\": self.forwarded_plan_results,\n                        \"time\": get_current_time()\n                    }), file=sys.stderr, flush=True)\n            else:\n                self.hold_in(\"WAITING\", float(\"inf\"))\n\n        elif old_phase == \"FORWARD_RESULT\":\n            forwarded_now = len(self.pending_result_outputs)\n            self.forwarded_plan_results += forwarded_now\n            self.pending_result_outputs = []\n\n            if self.received_plan_results >= self.expected_plan_count and self.expected_plan_count > 0:\n                self.hold_in(\"DONE\", float(\"inf\"))\n                print(json.dumps({\n                        \"event\": \"Batch Completed\",\n                        \"simulation_id\": self.simulation_id,\n                        \"expected_plan_count\": self.expected_plan_count,\n                        \"received_plan_results\": self.received_plan_results,\n                        \"forwarded_plan_results\": self.forwarded_plan_results,\n                        \"time\": get_current_time()\n                    }), file=sys.stderr, flush=True)\n            else:\n                self.hold_in(\"WAITING\", float(\"inf\"))\n\n        else:\n            self.hold_in(self.phase, float(\"inf\"))",
+          "deltext": "    def deltext(self, e: float):\n        import json\n        import sys\n\n        current_phase = self.phase\n        remaining = self.ta()\n        if remaining != float(\"inf\"):\n            remaining = max(0.0, remaining - e)\n\n        incoming_batches = []\n        for batch in self.input[\"plans_in\"].values:\n            incoming_batches.append(batch)\n\n        incoming_results = []\n        for result_payload in self.input[\"plan_result_in\"].values:\n            incoming_results.append(result_payload)\n\n        if len(incoming_batches) > 0:\n            if self.batch_received:\n                self.last_error = {\n                    \"event\": \"Batch Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"multiple_batches_received\",\n                    \"batch_count_received_now\": len(incoming_batches),\n                    \"time\": get_current_time()\n                }\n                print(json.dumps(self.last_error), file=sys.stderr, flush=True)\n                self.batch_aborted = True\n                self.hold_in(\"DONE\", float(\"inf\"))\n                return\n\n            if len(incoming_batches) != 1:\n                self.last_error = {\n                    \"event\": \"Batch Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"expected_single_batch_event\",\n                    \"batch_count_received_now\": len(incoming_batches),\n                    \"time\": get_current_time()\n                }\n                print(json.dumps(self.last_error), file=sys.stderr, flush=True)\n                self.batch_aborted = True\n                self.hold_in(\"DONE\", float(\"inf\"))\n                return\n\n            batch_payload = incoming_batches[0]\n            valid, normalized_plans, error_payload = self._validate_and_normalize_plan_batch(batch_payload)\n            if not valid:\n                self.last_error = error_payload\n                print(json.dumps(error_payload), file=sys.stderr, flush=True)\n                self.batch_aborted = True\n                self.hold_in(\"DONE\", float(\"inf\"))\n                return\n\n            self.batch_received = True\n            self.plan_order = [plan[\"plan_id\"] for plan in normalized_plans]\n            self.expected_plan_count = len(normalized_plans)\n\n            self.pending_plan_outputs = []\n            for index, plan in enumerate(normalized_plans):\n                self.pending_plan_outputs.append(\n                    {\n                        \"plan_index\": index,\n                        \"plan_id\": plan[\"plan_id\"],\n                        \"action_timeline\": plan[\"action_timeline\"],\n                        \"initial_state\": self._copy_initial_state()\n                    }\n                )\n\n            self.pending_batch_meta = {\n                \"plan_order\": [plan_id for plan_id in self.plan_order],\n                \"plan_count\": self.expected_plan_count,\n                \"horizon_hours\": self.horizon_hours\n            }\n\n            print(json.dumps({\n                    \"event\": \"Batch Received\",\n                    \"simulation_id\": self.simulation_id,\n                    \"plan_order\": self.plan_order,\n                    \"plan_count\": self.expected_plan_count,\n                    \"time\": get_current_time()\n                }), file=sys.stderr, flush=True)\n\n            self.hold_in(\"DISPATCH\", 0.0)\n            return\n\n        if len(incoming_results) > 0:\n            if not self.batch_received or self.batch_aborted:\n                self.last_error = {\n                    \"event\": \"Plan Result Validation Error\",\n                    \"simulation_id\": self.simulation_id,\n                    \"reason\": \"result_received_before_valid_batch\",\n                    \"result_count_received_now\": len(incoming_results),\n                    \"time\": get_current_time()\n                }\n                print(json.dumps(self.last_error), file=sys.stderr, flush=True)\n                self.hold_in(\"DONE\", float(\"inf\"))\n                return\n\n            prepared = []\n            for result_payload in incoming_results:\n                valid, error_payload = self._validate_plan_result(result_payload)\n                if not valid:\n                    self.last_error = error_payload\n                    print(json.dumps(error_payload), file=sys.stderr, flush=True)\n                    self.batch_aborted = True\n                    self.hold_in(\"DONE\", float(\"inf\"))\n                    return\n\n                plan_id = result_payload[\"plan_id\"]\n                if plan_id in self.received_result_plan_ids:\n                    self.last_error = {\n                        \"event\": \"Plan Result Validation Error\",\n                        \"simulation_id\": self.simulation_id,\n                        \"reason\": \"duplicate_plan_result\",\n                        \"plan_id\": plan_id,\n                        \"time\": get_current_time()\n                    }\n                    print(json.dumps(self.last_error), file=sys.stderr, flush=True)\n                    self.batch_aborted = True\n                    self.hold_in(\"DONE\", float(\"inf\"))\n                    return\n\n                self.received_result_plan_ids.append(plan_id)\n                self.received_plan_results += 1\n                prepared.append(\n                    {\n                        \"plan_id\": result_payload[\"plan_id\"],\n                        \"final_state\": {\n                            \"blood_pressure\": result_payload[\"final_state\"][\"blood_pressure\"],\n                            \"infection_burden\": result_payload[\"final_state\"][\"infection_burden\"],\n                            \"kidney_stress\": result_payload[\"final_state\"][\"kidney_stress\"],\n                            \"fluid_overload\": result_payload[\"final_state\"][\"fluid_overload\"]\n                        },\n                        \"final_score\": result_payload[\"final_score\"],\n                        \"score_breakdown\": {\n                            \"blood_pressure_points\": result_payload[\"score_breakdown\"][\"blood_pressure_points\"],\n                            \"infection_points\": result_payload[\"score_breakdown\"][\"infection_points\"],\n                            \"kidney_penalty\": result_payload[\"score_breakdown\"][\"kidney_penalty\"],\n                            \"fluid_overload_penalty\": result_payload[\"score_breakdown\"][\"fluid_overload_penalty\"]\n                        }\n                    }\n                )\n\n                print(json.dumps({\n                        \"event\": \"Plan Result Received\",\n                        \"simulation_id\": self.simulation_id,\n                        \"plan_id\": plan_id,\n                        \"received_plan_results\": self.received_plan_results,\n                        \"expected_plan_count\": self.expected_plan_count,\n                        \"time\": get_current_time()\n                    }), file=sys.stderr, flush=True)\n\n            self.pending_result_outputs = prepared\n            self.hold_in(\"FORWARD_RESULT\", 0.0)\n            return\n\n        self.hold_in(current_phase, remaining)",
+          "exit": "    def exit(self):\n        import json\n        import sys\n\n        print(json.dumps({\n                \"event\": \"Model Finalized\",\n                \"simulation_id\": self.simulation_id,\n                \"batch_received\": self.batch_received,\n                \"batch_dispatched\": self.batch_dispatched,\n                \"batch_aborted\": self.batch_aborted,\n                \"expected_plan_count\": self.expected_plan_count,\n                \"received_plan_results\": self.received_plan_results,\n                \"forwarded_plan_results\": self.forwarded_plan_results,\n                \"plan_order\": self.plan_order,\n                \"time\": get_current_time()\n            }), file=sys.stderr, flush=True)"
+        }
+      },
+      {
+        "id": "c3",
+        "label": "plan_simulator",
+        "modelType": "atomic",
+        "x": 420,
+        "y": 240,
+        "ports": {
+          "in": [
+            "plan_in"
+          ],
+          "out": [
+            "trace_out",
+            "plan_result_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "plan_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "trace_out",
+              "type": "dict"
+            },
+            {
+              "name": "plan_result_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "icu_sepsis_treatment_libs/plan_simulator.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        simulation_id: str,\n        horizon_hours: int,\n        state_update_interval_hours: int,\n        initial_state: dict,\n        model_parameters: dict,\n    ):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            simulation_id (str): Opaque batch identifier copied into all emitted trace logs.\n            horizon_hours (int): Simulation horizon in hours. Must be 6 for this task and hours 0 through 6 inclusive are evaluated.\n            state_update_interval_hours (int): Hourly update interval. Must be 1 for this task.\n            initial_state (dict): Default initial patient state.\n                blood_pressure (str): Initial blood pressure category, \"low\" or \"stable\".\n                infection_burden (str): Initial infection burden category, \"high\", \"medium\", or \"low\".\n                kidney_stress (str): Initial kidney stress category, \"mild\", \"moderate\", or \"severe\".\n                fluid_overload (bool): Initial fluid overload flag.\n            model_parameters (dict): Deterministic model parameters and rule labels.\n                fluid_support_delay_hours (int): Delay from IV fluid administration to support start.\n                fluid_support_duration_hours (int): Number of hours fluid support remains active once started.\n                antibiotic_delay_hours (int): Delay from antibiotic administration to infection effect activation.\n                max_intervention_hour (int): Last hour in which interventions may be scheduled.\n                repeated_vasopressor_toxicity_rule (str): Human-readable deterministic toxicity rule description.\n                fluid_overload_rule (str): Human-readable deterministic overload rule description.\n                infection_reduction_rule (str): Human-readable deterministic infection reduction rule description.\n        \"\"\"\n        import json\n        import sys\n\n        super().__init__(name)\n        self.parent = parent\n\n        self.add_in_port(Port(dict, \"plan_in\"))\n        self.add_out_port(Port(dict, \"trace_out\"))\n        self.add_out_port(Port(dict, \"plan_result_out\"))\n\n        self.simulation_id = simulation_id\n        self.horizon_hours = horizon_hours\n        self.state_update_interval_hours = state_update_interval_hours\n        self.default_initial_state = {\n            \"blood_pressure\": initial_state[\"blood_pressure\"],\n            \"infection_burden\": initial_state[\"infection_burden\"],\n            \"kidney_stress\": initial_state[\"kidney_stress\"],\n            \"fluid_overload\": initial_state[\"fluid_overload\"],\n        }\n        self.model_parameters = {\n            \"fluid_support_delay_hours\": model_parameters[\"fluid_support_delay_hours\"],\n            \"fluid_support_duration_hours\": model_parameters[\n                \"fluid_support_duration_hours\"\n            ],\n            \"antibiotic_delay_hours\": model_parameters[\"antibiotic_delay_hours\"],\n            \"max_intervention_hour\": model_parameters[\"max_intervention_hour\"],\n            \"repeated_vasopressor_toxicity_rule\": model_parameters[\n                \"repeated_vasopressor_toxicity_rule\"\n            ],\n            \"fluid_overload_rule\": model_parameters[\"fluid_overload_rule\"],\n            \"infection_reduction_rule\": model_parameters[\"infection_reduction_rule\"],\n        }\n\n        self.param = {\n            \"allowed_actions\": [\"vasopressor\", \"iv_fluids\", \"antibiotic\"],\n            \"blood_pressure_order\": [\"low\", \"stable\"],\n            \"infection_order\": [\"high\", \"medium\", \"low\"],\n            \"kidney_order\": [\"mild\", \"moderate\", \"severe\"],\n            \"fluid_overload_threshold\": 2,\n        }\n\n        self.plan_loaded = False\n        self.plan_index = -1\n        self.plan_id = \"\"\n        self.plan_queue = []\n        self.action_timeline = {}\n\n        self.current_hour = 0\n        self.state = {}\n        self.fluid_tokens = []\n        self.antibiotic_tokens = []\n        self.vasopressor_count = 0\n        self.fluid_count = 0\n\n        self.pending_trace_payload = None\n        self.pending_result_payload = None\n\n        self.trace_count = 0\n        self.error_count = 0\n\n        self.hold_in(\"WAIT_PLAN\", math.inf)\n\n        print(json.dumps({\n                \"event\": \"Model Created\",\n                \"simulation_id\": self.simulation_id,\n                \"horizon_hours\": self.horizon_hours,\n                \"state_update_interval_hours\": self.state_update_interval_hours,\n                \"initial_state\": self.default_initial_state,\n                \"model_parameters\": self.model_parameters,\n                \"param\": self.param,\n                \"time\": get_current_time(),\n            }), file=sys.stderr, flush=True)",
+          "initialize": "    def initialize(self):\n        import json\n        import sys\n\n        self.plan_loaded = False\n        self.plan_index = -1\n        self.plan_id = \"\"\n        self.plan_queue = []\n        self.action_timeline = {}\n        self.current_hour = 0\n        self.state = {\n            \"blood_pressure\": self.default_initial_state[\"blood_pressure\"],\n            \"infection_burden\": self.default_initial_state[\"infection_burden\"],\n            \"kidney_stress\": self.default_initial_state[\"kidney_stress\"],\n            \"fluid_overload\": self.default_initial_state[\"fluid_overload\"],\n        }\n        self.fluid_tokens = []\n        self.antibiotic_tokens = []\n        self.vasopressor_count = 0\n        self.fluid_count = 0\n        self.pending_trace_payload = None\n        self.pending_result_payload = None\n        self.trace_count = 0\n        self.error_count = 0\n\n        print(json.dumps({\n                \"event\": \"Model Initialized\",\n                \"simulation_id\": self.simulation_id,\n                \"phase\": \"WAIT_PLAN\",\n                \"time\": get_current_time(),\n            }), file=sys.stderr, flush=True)\n        self.hold_in(\"WAIT_PLAN\", math.inf)",
+          "lambdaf": "    def lambdaf(self):\n        if self.phase == \"EMIT_TRACE\" and self.pending_trace_payload is not None:\n            self.output[\"trace_out\"].add(self.pending_trace_payload)\n        elif self.phase == \"EMIT_RESULT\" and self.pending_result_payload is not None:\n            self.output[\"plan_result_out\"].add(self.pending_result_payload)",
+          "deltint": "    def deltint(self):\n        import json\n        import sys\n\n        old_phase = self.phase\n        old_sigma = self.ta()\n\n        if old_phase == \"EMIT_TRACE\":\n            self.trace_count += 1\n            print(json.dumps(self.pending_trace_payload), file=sys.stderr, flush=True)\n\n            if self.current_hour < self.horizon_hours:\n                self.current_hour += 1\n                self.pending_trace_payload = self._simulate_hour(self.current_hour)\n                self.hold_in(\"EMIT_TRACE\", 0)\n            else:\n                self.pending_result_payload = self._build_plan_result()\n                print(json.dumps({\n                        \"event\": \"Plan Result Prepared\",\n                        \"simulation_id\": self.simulation_id,\n                        \"plan_id\": self.plan_id,\n                        \"result\": self.pending_result_payload,\n                        \"time\": get_current_time(),\n                    }), file=sys.stderr, flush=True)\n                self.hold_in(\"EMIT_RESULT\", 0)\n\n        elif old_phase == \"EMIT_RESULT\":\n            self.pending_result_payload = None\n            self.plan_loaded = False\n            self.plan_index = -1\n            self.plan_id = \"\"\n\n            if len(self.plan_queue) > 0:\n                next_plan = self.plan_queue.pop(0)\n                try:\n                    self._load_plan(next_plan)\n                    self.pending_trace_payload = self._simulate_hour(0)\n                    print(json.dumps({\n                            \"event\": \"Plan Accepted\",\n                            \"simulation_id\": self.simulation_id,\n                            \"plan_id\": self.plan_id,\n                            \"plan_index\": self.plan_index,\n                            \"time\": get_current_time(),\n                        }), file=sys.stderr, flush=True)\n                    self.hold_in(\"EMIT_TRACE\", 0)\n                except Exception as exc:\n                    self.error_count += 1\n                    print(json.dumps({\n                            \"event\": \"Plan Validation Error\",\n                            \"simulation_id\": self.simulation_id,\n                            \"error\": str(exc),\n                            \"received_payload\": next_plan,\n                            \"time\": get_current_time(),\n                        }), file=sys.stderr, flush=True)\n                    self.hold_in(\"WAIT_PLAN\", math.inf)\n            else:\n                self.hold_in(\"WAIT_PLAN\", math.inf)\n\n        else:\n            self.hold_in(old_phase, old_sigma)",
+          "deltext": "    def deltext(self, e: float):\n        import json\n        import sys\n\n        if self.phase == \"WAIT_PLAN\":\n            for plan_payload in self.input[\"plan_in\"].values:\n                self.plan_queue.append(plan_payload)\n\n            if len(self.plan_queue) > 0:\n                plan_payload = self.plan_queue.pop(0)\n                try:\n                    self._load_plan(plan_payload)\n                    self.pending_trace_payload = self._simulate_hour(0)\n                    print(json.dumps({\n                            \"event\": \"Plan Accepted\",\n                            \"simulation_id\": self.simulation_id,\n                            \"plan_id\": self.plan_id,\n                            \"plan_index\": self.plan_index,\n                            \"time\": get_current_time(),\n                        }), file=sys.stderr, flush=True)\n                    self.hold_in(\"EMIT_TRACE\", 0)\n                    return\n                except Exception as exc:\n                    self.error_count += 1\n                    print(json.dumps({\n                            \"event\": \"Plan Validation Error\",\n                            \"simulation_id\": self.simulation_id,\n                            \"error\": str(exc),\n                            \"received_payload\": plan_payload,\n                            \"time\": get_current_time(),\n                        }), file=sys.stderr, flush=True)\n                    self.hold_in(\"WAIT_PLAN\", math.inf)\n                    return\n            self.hold_in(\"WAIT_PLAN\", math.inf)\n        else:\n            for plan_payload in self.input[\"plan_in\"].values:\n                self.plan_queue.append(plan_payload)\n            remaining = self.ta()\n            if math.isinf(remaining):\n                self.hold_in(self.phase, math.inf)\n            else:\n                self.hold_in(self.phase, max(0.0, remaining - e))",
+          "exit": "    def exit(self):\n        import json\n        import sys\n\n        print(json.dumps({\n                \"event\": \"Model Finalized\",\n                \"simulation_id\": self.simulation_id,\n                \"plan_loaded\": self.plan_loaded,\n                \"plan_id\": self.plan_id,\n                \"trace_count\": self.trace_count,\n                \"error_count\": self.error_count,\n                \"time\": get_current_time(),\n            }), file=sys.stderr, flush=True)",
+          "_load_plan": "    def _load_plan(self, plan_payload: dict):\n        self._validate_plan_payload(plan_payload)\n\n        self.plan_loaded = True\n        self.plan_index = plan_payload[\"plan_index\"]\n        self.plan_id = plan_payload[\"plan_id\"]\n        self.action_timeline = self._normalize_timeline(plan_payload[\"action_timeline\"])\n\n        if \"initial_state\" in plan_payload and isinstance(\n            plan_payload[\"initial_state\"], dict\n        ):\n            plan_initial_state = plan_payload[\"initial_state\"]\n            self._validate_state(plan_initial_state)\n            self.state = {\n                \"blood_pressure\": plan_initial_state[\"blood_pressure\"],\n                \"infection_burden\": plan_initial_state[\"infection_burden\"],\n                \"kidney_stress\": plan_initial_state[\"kidney_stress\"],\n                \"fluid_overload\": plan_initial_state[\"fluid_overload\"],\n            }\n        else:\n            self.state = {\n                \"blood_pressure\": self.default_initial_state[\"blood_pressure\"],\n                \"infection_burden\": self.default_initial_state[\"infection_burden\"],\n                \"kidney_stress\": self.default_initial_state[\"kidney_stress\"],\n                \"fluid_overload\": self.default_initial_state[\"fluid_overload\"],\n            }\n\n        self.current_hour = 0\n        self.fluid_tokens = []\n        self.antibiotic_tokens = []\n        self.vasopressor_count = 0\n        self.fluid_count = 0\n        self.pending_trace_payload = None\n        self.pending_result_payload = None",
+          "_validate_plan_payload": "    def _validate_plan_payload(self, payload: dict):\n        if not isinstance(payload, dict):\n            raise ValueError(\"plan payload must be a dict\")\n        for required_key in [\n            \"plan_index\",\n            \"plan_id\",\n            \"action_timeline\",\n            \"initial_state\",\n        ]:\n            if required_key not in payload:\n                raise ValueError(\"missing required key: \" + required_key)\n        if not isinstance(payload[\"plan_index\"], int):\n            raise ValueError(\"plan_index must be int\")\n        if not isinstance(payload[\"plan_id\"], str):\n            raise ValueError(\"plan_id must be str\")\n        if not isinstance(payload[\"action_timeline\"], dict):\n            raise ValueError(\"action_timeline must be dict\")\n        if not isinstance(payload[\"initial_state\"], dict):\n            raise ValueError(\"initial_state must be dict\")\n\n        self._validate_state(payload[\"initial_state\"])\n\n        for hour_key, action_list in payload[\"action_timeline\"].items():\n            if not isinstance(hour_key, str):\n                raise ValueError(\"action_timeline hour keys must be str\")\n            if not hour_key.isdigit():\n                raise ValueError(\"action_timeline hour keys must be integer strings\")\n            hour_int = int(hour_key)\n            if hour_int < 0 or hour_int > self.horizon_hours:\n                raise ValueError(\"action_timeline hour out of range\")\n            if not isinstance(action_list, list):\n                raise ValueError(\"action_timeline values must be list\")\n            for action_name in action_list:\n                if not isinstance(action_name, str):\n                    raise ValueError(\"action names must be str\")\n                if action_name not in self.param[\"allowed_actions\"]:\n                    raise ValueError(\"unknown action name: \" + action_name)\n            if (\n                hour_int > self.model_parameters[\"max_intervention_hour\"]\n                and len(action_list) > 0\n            ):\n                raise ValueError(\n                    \"interventions after max_intervention_hour are not allowed\"\n                )",
+          "_validate_state": "    def _validate_state(self, state_data: dict):\n        for required_key in [\n            \"blood_pressure\",\n            \"infection_burden\",\n            \"kidney_stress\",\n            \"fluid_overload\",\n        ]:\n            if required_key not in state_data:\n                raise ValueError(\"missing state key: \" + required_key)\n        if state_data[\"blood_pressure\"] not in self.param[\"blood_pressure_order\"]:\n            raise ValueError(\"invalid blood_pressure\")\n        if state_data[\"infection_burden\"] not in self.param[\"infection_order\"]:\n            raise ValueError(\"invalid infection_burden\")\n        if state_data[\"kidney_stress\"] not in self.param[\"kidney_order\"]:\n            raise ValueError(\"invalid kidney_stress\")\n        if not isinstance(state_data[\"fluid_overload\"], bool):\n            raise ValueError(\"fluid_overload must be bool\")",
+          "_normalize_timeline": "    def _normalize_timeline(self, action_timeline: dict) -> dict:\n        normalized = {}\n        hour = 0\n        while hour <= self.horizon_hours:\n            key = str(hour)\n            if key in action_timeline:\n                normalized[key] = []\n                for item in action_timeline[key]:\n                    normalized[key].append(item)\n            else:\n                normalized[key] = []\n            hour += 1\n        return normalized",
+          "_simulate_hour": "    def _simulate_hour(self, hour: int) -> dict:\n        actions_applied = []\n        for action_name in self.action_timeline.get(str(hour), []):\n            actions_applied.append(action_name)\n\n        state_before = {\n            \"blood_pressure\": self.state[\"blood_pressure\"],\n            \"infection_burden\": self.state[\"infection_burden\"],\n            \"kidney_stress\": self.state[\"kidney_stress\"],\n            \"fluid_overload\": self.state[\"fluid_overload\"],\n        }\n\n        registered_effects = {\n            \"new_fluid_tokens\": [],\n            \"new_antibiotic_tokens\": [],\n            \"vasopressor_administered\": False,\n        }\n        kidney_worsening_reasons = []\n        notes = []\n\n        vasopressor_immediate = False\n\n        for action_name in actions_applied:\n            if action_name == \"vasopressor\":\n                vasopressor_immediate = True\n                self.vasopressor_count += 1\n                registered_effects[\"vasopressor_administered\"] = True\n                notes.append(\n                    \"vasopressor gives immediate same-hour blood pressure support\"\n                )\n            elif action_name == \"iv_fluids\":\n                self.fluid_count += 1\n                start_hour = hour + self.model_parameters[\"fluid_support_delay_hours\"]\n                end_hour = (\n                    start_hour\n                    + self.model_parameters[\"fluid_support_duration_hours\"]\n                    - 1\n                )\n                token = {\"start_hour\": start_hour, \"end_hour\": end_hour}\n                self.fluid_tokens.append(token)\n                registered_effects[\"new_fluid_tokens\"].append(\n                    {\"start_hour\": start_hour, \"end_hour\": end_hour}\n                )\n                notes.append(\"iv_fluids register delayed support token\")\n            elif action_name == \"antibiotic\":\n                activation_hour = hour + self.model_parameters[\"antibiotic_delay_hours\"]\n                token = {\"activation_hour\": activation_hour}\n                self.antibiotic_tokens.append(token)\n                registered_effects[\"new_antibiotic_tokens\"].append(\n                    {\"activation_hour\": activation_hour}\n                )\n                notes.append(\n                    \"antibiotic registers delayed infection-reduction activation\"\n                )\n\n        fluid_support_active = 0\n        for token in self.fluid_tokens:\n            if token[\"start_hour\"] <= hour <= token[\"end_hour\"]:\n                fluid_support_active += 1\n\n        antibiotic_effect_active = 0\n        for token in self.antibiotic_tokens:\n            if token[\"activation_hour\"] <= hour:\n                antibiotic_effect_active += 1\n\n        if vasopressor_immediate or fluid_support_active > 0:\n            self.state[\"blood_pressure\"] = \"stable\"\n        else:\n            self.state[\"blood_pressure\"] = \"low\"\n\n        infection_steps = antibiotic_effect_active\n        while infection_steps > 0:\n            self.state[\"infection_burden\"] = self._improve_infection(\n                self.state[\"infection_burden\"]\n            )\n            infection_steps -= 1\n        if antibiotic_effect_active > 0:\n            notes.append(\n                \"antibiotic delayed effect is active and reduces infection one step per active token\"\n            )\n\n        if vasopressor_immediate and self.vasopressor_count >= 2:\n            self.state[\"kidney_stress\"] = self._worsen_kidney(\n                self.state[\"kidney_stress\"]\n            )\n            kidney_worsening_reasons.append(\"repeated_vasopressor_toxicity\")\n            notes.append(\"repeated vasopressor exposure worsens kidney stress\")\n\n        if (\n            self.state[\"blood_pressure\"] == \"low\"\n            and self.state[\"infection_burden\"] == \"high\"\n        ):\n            self.state[\"kidney_stress\"] = self._worsen_kidney(\n                self.state[\"kidney_stress\"]\n            )\n            kidney_worsening_reasons.append(\"low_bp_and_high_infection\")\n            notes.append(\n                \"combined low blood pressure and high infection worsens kidney stress\"\n            )\n\n        if self.fluid_count >= self.param[\"fluid_overload_threshold\"]:\n            self.state[\"fluid_overload\"] = True\n            notes.append(\"fluid overload threshold reached and remains true\")\n\n        state_after = {\n            \"blood_pressure\": self.state[\"blood_pressure\"],\n            \"infection_burden\": self.state[\"infection_burden\"],\n            \"kidney_stress\": self.state[\"kidney_stress\"],\n            \"fluid_overload\": self.state[\"fluid_overload\"],\n        }\n\n        active_effects = {\n            \"vasopressor_immediate\": vasopressor_immediate,\n            \"fluid_support_active\": fluid_support_active,\n            \"antibiotic_effect_active\": antibiotic_effect_active,\n        }\n\n        transitions = {\n            \"blood_pressure\": str(state_before[\"blood_pressure\"])\n            + \"->\"\n            + str(state_after[\"blood_pressure\"]),\n            \"infection_burden\": str(state_before[\"infection_burden\"])\n            + \"->\"\n            + str(state_after[\"infection_burden\"]),\n            \"kidney_stress\": str(state_before[\"kidney_stress\"])\n            + \"->\"\n            + str(state_after[\"kidney_stress\"]),\n            \"fluid_overload\": str(state_before[\"fluid_overload\"]).lower()\n            + \"->\"\n            + str(state_after[\"fluid_overload\"]).lower(),\n        }\n\n        score_if_terminal_now, _ = self._compute_score(state_after)\n\n        trace_payload = {\n            \"event\": \"trace\",\n            \"simulation_id\": self.simulation_id,\n            \"plan_id\": self.plan_id,\n            \"hour\": hour,\n            \"actions_applied\": actions_applied,\n            \"state_before\": state_before,\n            \"active_effects\": active_effects,\n            \"transitions\": transitions,\n            \"state_after\": state_after,\n            \"score_if_terminal_now\": score_if_terminal_now,\n            \"registered_effects\": registered_effects,\n            \"kidney_worsening_reasons\": kidney_worsening_reasons,\n            \"cumulative_exposures\": {\n                \"vasopressor_count\": self.vasopressor_count,\n                \"fluid_count\": self.fluid_count,\n            },\n            \"notes\": notes,\n        }\n        return trace_payload",
+          "_compute_score": "    def _compute_score(self, state_data: dict) -> tuple:\n        if state_data[\"blood_pressure\"] == \"stable\":\n            blood_pressure_points = 40\n        else:\n            blood_pressure_points = 0\n\n        if state_data[\"infection_burden\"] == \"low\":\n            infection_points = 30\n        elif state_data[\"infection_burden\"] == \"medium\":\n            infection_points = 15\n        else:\n            infection_points = 0\n\n        if state_data[\"kidney_stress\"] == \"mild\":\n            kidney_penalty = 0\n        elif state_data[\"kidney_stress\"] == \"moderate\":\n            kidney_penalty = 15\n        else:\n            kidney_penalty = 35\n\n        if state_data[\"fluid_overload\"]:\n            fluid_overload_penalty = 10\n        else:\n            fluid_overload_penalty = 0\n\n        final_score = (\n            blood_pressure_points\n            + infection_points\n            - kidney_penalty\n            - fluid_overload_penalty\n        )\n        breakdown = {\n            \"blood_pressure_points\": blood_pressure_points,\n            \"infection_points\": infection_points,\n            \"kidney_penalty\": kidney_penalty,\n            \"fluid_overload_penalty\": fluid_overload_penalty,\n        }\n        return final_score, breakdown",
+          "_build_plan_result": "    def _build_plan_result(self) -> dict:\n        final_state = {\n            \"blood_pressure\": self.state[\"blood_pressure\"],\n            \"infection_burden\": self.state[\"infection_burden\"],\n            \"kidney_stress\": self.state[\"kidney_stress\"],\n            \"fluid_overload\": self.state[\"fluid_overload\"],\n        }\n        final_score, score_breakdown = self._compute_score(final_state)\n        return {\n            \"plan_id\": self.plan_id,\n            \"final_state\": final_state,\n            \"final_score\": final_score,\n            \"score_breakdown\": score_breakdown,\n        }",
+          "_improve_infection": "    def _improve_infection(self, current_value: str) -> str:\n        if current_value == \"high\":\n            return \"medium\"\n        if current_value == \"medium\":\n            return \"low\"\n        return \"low\"",
+          "_worsen_kidney": "    def _worsen_kidney(self, current_value: str) -> str:\n        if current_value == \"mild\":\n            return \"moderate\"\n        if current_value == \"moderate\":\n            return \"severe\"\n        return \"severe\""
+        }
+      },
+      {
+        "id": "c4",
+        "label": "trace_logger",
+        "modelType": "atomic",
+        "x": 620,
+        "y": 240,
+        "ports": {
+          "in": [
+            "trace_in"
+          ],
+          "out": []
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "trace_in",
+              "type": "dict"
+            }
+          ],
+          "out": []
+        },
+        "file": "icu_sepsis_treatment_libs/trace_logger.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None, simulation_id: str):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            simulation_id (str): Opaque batch identifier expected in all trace records written to the logger.\n        \"\"\"\n        import json\n        import sys\n\n        super().__init__(name)\n        self.parent = parent\n\n        self.add_in_port(Port(dict, \"trace_in\"))\n\n        self.simulation_id = simulation_id\n        self.param = {\n            \"expected_event\": \"trace\",\n            \"queue_policy\": \"preserve_reception_order\",\n            \"simulation_id_must_match\": True\n        }\n\n        self.trace_queue = []\n        self.prepared_trace = None\n        self.logged_trace_count = 0\n\n        self.hold_in(\"IDLE\", math.inf)\n\n        print(json.dumps({\n                \"event\": \"Model Created\",\n                \"model\": self.name,\n                \"simulation_id\": self.simulation_id,\n                \"param\": self.param,\n                \"time\": get_current_time()\n            }), file=sys.stderr, flush=True)",
+          "initialize": "    def initialize(self):\n        import json\n        import sys\n\n        self.trace_queue = []\n        self.prepared_trace = None\n        self.logged_trace_count = 0\n        self.hold_in(\"IDLE\", math.inf)\n        print(json.dumps({\n                \"event\": \"Model Initialized\",\n                \"model\": self.name,\n                \"simulation_id\": self.simulation_id,\n                \"param\": self.param,\n                \"time\": get_current_time()\n            }), file=sys.stderr, flush=True)",
+          "lambdaf": "    def lambdaf(self):\n        return",
+          "deltint": "    def deltint(self):\n        import json\n\n        old_phase = self.phase\n        _ = self.ta()\n\n        if old_phase == \"LOG_READY\" and self.prepared_trace is not None:\n            print(json.dumps(self.prepared_trace), flush=True)\n            self.logged_trace_count += 1\n            self.prepared_trace = None\n\n        if len(self.trace_queue) > 0:\n            self.prepared_trace = self.trace_queue.pop(0)\n            self.hold_in(\"LOG_READY\", 0)\n        else:\n            self.hold_in(\"IDLE\", math.inf)",
+          "deltext": "    def deltext(self, e: float):\n        import json\n        import sys\n\n        old_phase = self.phase\n        remaining = self.ta()\n\n        incoming_traces = list(self.input[\"trace_in\"].values)\n        for trace_payload in incoming_traces:\n            if isinstance(trace_payload, dict):\n                self.trace_queue.append(trace_payload)\n            else:\n                print(json.dumps({\n                        \"event\": \"Trace Rejected\",\n                        \"reason\": \"non_dict_payload\",\n                        \"simulation_id\": self.simulation_id,\n                        \"model\": self.name,\n                        \"time\": get_current_time()\n                    }), file=sys.stderr, flush=True)\n\n        if old_phase == \"IDLE\":\n            if self.prepared_trace is None and len(self.trace_queue) > 0:\n                self.prepared_trace = self.trace_queue.pop(0)\n                self.hold_in(\"LOG_READY\", 0)\n            else:\n                self.hold_in(\"IDLE\", math.inf)\n        elif old_phase == \"LOG_READY\":\n            next_sigma = remaining - e\n            if next_sigma < 0:\n                next_sigma = 0\n            self.hold_in(\"LOG_READY\", next_sigma)\n        else:\n            if self.prepared_trace is None and len(self.trace_queue) > 0:\n                self.prepared_trace = self.trace_queue.pop(0)\n                self.hold_in(\"LOG_READY\", 0)\n            else:\n                self.hold_in(\"IDLE\", math.inf)",
+          "exit": "    def exit(self):\n        import json\n        import sys\n\n        print(json.dumps({\n                \"event\": \"Model Finalized\",\n                \"model\": self.name,\n                \"simulation_id\": self.simulation_id,\n                \"total_logged_traces\": self.logged_trace_count,\n                \"time\": get_current_time()\n            }), file=sys.stderr, flush=True)"
+        }
+      },
+      {
+        "id": "c5",
+        "label": "result_aggregator",
+        "modelType": "atomic",
+        "x": 370,
+        "y": 390,
+        "ports": {
+          "in": [
+            "batch_meta_in",
+            "plan_result_in"
+          ],
+          "out": [
+            "result_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "batch_meta_in",
+              "type": "dict"
+            },
+            {
+              "name": "plan_result_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "result_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "icu_sepsis_treatment_libs/result_aggregator.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None, simulation_id: str, horizon_hours: int):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            simulation_id (str): Opaque batch identifier copied into the final result payload.\n            horizon_hours (int): Batch simulation horizon. Must be 6 for this task.\n        \"\"\"\n        import json\n        import sys\n\n        super().__init__(name)\n        self.parent = parent\n\n        self.add_in_port(Port(dict, \"batch_meta_in\"))\n        self.add_in_port(Port(dict, \"plan_result_in\"))\n        self.add_out_port(Port(dict, \"result_out\"))\n\n        self.simulation_id = simulation_id\n        self.horizon_hours = horizon_hours\n\n        self.param = {\n            \"tie_break_rule\": \"highest_final_score_then_lexical_ascending_plan_id\",\n            \"duplicate_plan_result_policy\": \"last_received_value_overwrites_previous_same_plan_id\",\n            \"output_count\": 1\n        }\n\n        self.batch_meta = None\n        self.plan_order = []\n        self.plan_count = 0\n        self.results_by_plan_id = {}\n        self.result_payload = None\n        self.result_emitted = False\n\n        self.hold_in(\"WAITING\", float(\"inf\"))\n\n        print(json.dumps({\n                \"event\": \"Model Created\",\n                \"simulation_id\": self.simulation_id,\n                \"horizon_hours\": self.horizon_hours,\n                \"param\": self.param,\n                \"time\": get_current_time()\n            }), file=sys.stderr, flush=True)",
+          "initialize": "    def initialize(self):\n        import json\n        import sys\n\n        self.batch_meta = None\n        self.plan_order = []\n        self.plan_count = 0\n        self.results_by_plan_id = {}\n        self.result_payload = None\n        self.result_emitted = False\n\n        self.hold_in(\"WAITING\", float(\"inf\"))\n\n        print(json.dumps({\n                \"event\": \"Model Initialized\",\n                \"simulation_id\": self.simulation_id,\n                \"horizon_hours\": self.horizon_hours,\n                \"time\": get_current_time()\n            }), file=sys.stderr, flush=True)",
+          "_is_ready_to_emit": "    def _is_ready_to_emit(self) -> bool:\n        if self.result_emitted:\n            return False\n        if self.batch_meta is None:\n            return False\n        if self.plan_count < 0:\n            return False\n        if len(self.results_by_plan_id) != self.plan_count:\n            return False\n        for plan_id in self.plan_order:\n            if plan_id not in self.results_by_plan_id:\n                return False\n        return True",
+          "_select_best_plan_id": "    def _select_best_plan_id(self, ordered_plans: list) -> str:\n        best_plan_id = \"\"\n        best_score = None\n        for plan in ordered_plans:\n            current_plan_id = plan[\"plan_id\"]\n            current_score = plan[\"final_score\"]\n            if best_score is None:\n                best_score = current_score\n                best_plan_id = current_plan_id\n            else:\n                if current_score > best_score:\n                    best_score = current_score\n                    best_plan_id = current_plan_id\n                elif current_score == best_score and current_plan_id < best_plan_id:\n                    best_plan_id = current_plan_id\n        return best_plan_id",
+          "_build_result_payload": "    def _build_result_payload(self) -> dict:\n        ordered_plans = []\n        for plan_id in self.plan_order:\n            plan_result = self.results_by_plan_id[plan_id]\n            ordered_plans.append(\n                {\n                    \"plan_id\": plan_result[\"plan_id\"],\n                    \"final_state\": {\n                        \"blood_pressure\": plan_result[\"final_state\"][\"blood_pressure\"],\n                        \"infection_burden\": plan_result[\"final_state\"][\"infection_burden\"],\n                        \"kidney_stress\": plan_result[\"final_state\"][\"kidney_stress\"],\n                        \"fluid_overload\": plan_result[\"final_state\"][\"fluid_overload\"]\n                    },\n                    \"final_score\": plan_result[\"final_score\"],\n                    \"score_breakdown\": {\n                        \"blood_pressure_points\": plan_result[\"score_breakdown\"][\"blood_pressure_points\"],\n                        \"infection_points\": plan_result[\"score_breakdown\"][\"infection_points\"],\n                        \"kidney_penalty\": plan_result[\"score_breakdown\"][\"kidney_penalty\"],\n                        \"fluid_overload_penalty\": plan_result[\"score_breakdown\"][\"fluid_overload_penalty\"]\n                    }\n                }\n            )\n\n        best_plan_id = self._select_best_plan_id(ordered_plans)\n\n        return {\n            \"event\": \"result\",\n            \"simulation_id\": self.simulation_id,\n            \"horizon_hours\": self.horizon_hours,\n            \"plans\": ordered_plans,\n            \"best_plan_id\": best_plan_id\n        }",
+          "lambdaf": "    def lambdaf(self):\n        if self.phase == \"EMIT_RESULT\" and self.result_payload is not None and not self.result_emitted:\n            self.output[\"result_out\"].add(self.result_payload)",
+          "deltint": "    def deltint(self):\n        import json\n        import sys\n\n        if self.phase == \"EMIT_RESULT\":\n            self.result_emitted = True\n            print(json.dumps(self.result_payload), file=sys.stderr, flush=True)\n            print(json.dumps({\n                    \"event\": \"Final Result Emitted\",\n                    \"simulation_id\": self.simulation_id,\n                    \"result\": self.result_payload,\n                    \"time\": get_current_time()\n                }), file=sys.stderr, flush=True)\n            self.hold_in(\"DONE\", float(\"inf\"))\n        else:\n            self.hold_in(self.phase, float(\"inf\"))",
+          "deltext": "    def deltext(self, e: float):\n        import json\n        import sys\n\n        current_phase = self.phase\n        current_sigma = self.ta()\n\n        if current_phase == \"DONE\":\n            self.hold_in(\"DONE\", float(\"inf\"))\n            return\n\n        for meta in self.input[\"batch_meta_in\"].values:\n            self.batch_meta = {\n                \"plan_order\": [plan_id for plan_id in meta[\"plan_order\"]],\n                \"plan_count\": meta[\"plan_count\"],\n                \"horizon_hours\": meta[\"horizon_hours\"]\n            }\n            self.plan_order = [plan_id for plan_id in meta[\"plan_order\"]]\n            self.plan_count = meta[\"plan_count\"]\n\n            print(json.dumps({\n                    \"event\": \"Batch Metadata Received\",\n                    \"simulation_id\": self.simulation_id,\n                    \"batch_meta\": self.batch_meta,\n                    \"time\": get_current_time()\n                }), file=sys.stderr, flush=True)\n\n        for plan_result in self.input[\"plan_result_in\"].values:\n            stored_result = {\n                \"plan_id\": plan_result[\"plan_id\"],\n                \"final_state\": {\n                    \"blood_pressure\": plan_result[\"final_state\"][\"blood_pressure\"],\n                    \"infection_burden\": plan_result[\"final_state\"][\"infection_burden\"],\n                    \"kidney_stress\": plan_result[\"final_state\"][\"kidney_stress\"],\n                    \"fluid_overload\": plan_result[\"final_state\"][\"fluid_overload\"]\n                },\n                \"final_score\": plan_result[\"final_score\"],\n                \"score_breakdown\": {\n                    \"blood_pressure_points\": plan_result[\"score_breakdown\"][\"blood_pressure_points\"],\n                    \"infection_points\": plan_result[\"score_breakdown\"][\"infection_points\"],\n                    \"kidney_penalty\": plan_result[\"score_breakdown\"][\"kidney_penalty\"],\n                    \"fluid_overload_penalty\": plan_result[\"score_breakdown\"][\"fluid_overload_penalty\"]\n                }\n            }\n            self.results_by_plan_id[stored_result[\"plan_id\"]] = stored_result\n\n            print(json.dumps({\n                    \"event\": \"Plan Result Received\",\n                    \"simulation_id\": self.simulation_id,\n                    \"plan_result\": stored_result,\n                    \"collected_result_count\": len(self.results_by_plan_id),\n                    \"time\": get_current_time()\n                }), file=sys.stderr, flush=True)\n\n        if self._is_ready_to_emit():\n            self.result_payload = self._build_result_payload()\n            print(json.dumps({\n                    \"event\": \"Final Result Prepared\",\n                    \"simulation_id\": self.simulation_id,\n                    \"result\": self.result_payload,\n                    \"time\": get_current_time()\n                }), file=sys.stderr, flush=True)\n            self.hold_in(\"EMIT_RESULT\", 0)\n        else:\n            if math.isinf(current_sigma):\n                self.hold_in(\"WAITING\", float(\"inf\"))\n            else:\n                remaining = current_sigma - e\n                if remaining < 0:\n                    remaining = 0\n                self.hold_in(current_phase, remaining)",
+          "exit": "    def exit(self):\n        import json\n        import sys\n\n        print(json.dumps({\n                \"event\": \"Model Finalized\",\n                \"simulation_id\": self.simulation_id,\n                \"horizon_hours\": self.horizon_hours,\n                \"metadata_received\": self.batch_meta is not None,\n                \"expected_plan_count\": self.plan_count,\n                \"collected_plan_count\": len(self.results_by_plan_id),\n                \"result_emitted\": self.result_emitted,\n                \"time\": get_current_time()\n            }), file=sys.stderr, flush=True)"
+        }
+      },
+      {
+        "id": "c6",
+        "label": "result_logger",
+        "modelType": "atomic",
+        "x": 620,
+        "y": 390,
+        "ports": {
+          "in": [
+            "result_in"
+          ],
+          "out": []
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "result_in",
+              "type": "dict"
+            }
+          ],
+          "out": []
+        },
+        "file": "icu_sepsis_treatment_libs/result_logger.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None, simulation_id: str):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            simulation_id (str): Opaque batch identifier expected in the final result record.\n        \"\"\"\n        import json\n        import sys\n\n        super().__init__(name)\n        self.parent = parent\n\n        self.add_in_port(Port(dict, \"result_in\"))\n\n        self.simulation_id = simulation_id\n        self.param = {\n            \"expects_event\": \"result\",\n            \"allow_multiple_results\": False\n        }\n\n        self.pending_result = None\n        self.logged_result_count = 0\n\n        self.hold_in(\"WAITING\", math.inf)\n\n        print(json.dumps({\n                \"event\": \"Model Created\",\n                \"simulation_id\": self.simulation_id,\n                \"param\": self.param\n            }), file=sys.stderr, flush=True)",
+          "initialize": "    def initialize(self):\n        import json\n        import sys\n\n        self.pending_result = None\n        self.logged_result_count = 0\n        self.hold_in(\"WAITING\", math.inf)\n        print(json.dumps({\n                \"event\": \"Model Initialized\",\n                \"simulation_id\": self.simulation_id\n            }), file=sys.stderr, flush=True)",
+          "lambdaf": "    def lambdaf(self):\n        return",
+          "deltint": "    def deltint(self):\n        import json\n\n        old_phase = self.phase\n        _ = self.ta()\n\n        if old_phase == \"LOG_READY\" and self.pending_result is not None:\n            print(json.dumps(self.pending_result), flush=True)\n            self.logged_result_count += 1\n            self.pending_result = None\n\n        self.hold_in(\"WAITING\", math.inf)",
+          "deltext": "    def deltext(self, e: float):\n        import json\n        import sys\n\n        old_phase = self.phase\n        remaining = self.ta()\n\n        incoming_results = list(self.input[\"result_in\"].values)\n\n        if len(incoming_results) == 0:\n            if math.isinf(remaining):\n                self.hold_in(old_phase, math.inf)\n            else:\n                self.hold_in(old_phase, max(0.0, remaining - e))\n            return\n\n        selected_result = incoming_results[0]\n\n        if self.logged_result_count >= 1 and not self.param[\"allow_multiple_results\"]:\n            print(json.dumps({\n                    \"event\": \"Duplicate Result Ignored\",\n                    \"simulation_id\": self.simulation_id\n                }), file=sys.stderr, flush=True)\n            self.hold_in(\"WAITING\", math.inf)\n            return\n\n        self.pending_result = {\n            \"event\": selected_result[\"event\"],\n            \"simulation_id\": selected_result[\"simulation_id\"],\n            \"horizon_hours\": selected_result[\"horizon_hours\"],\n            \"plans\": selected_result[\"plans\"],\n            \"best_plan_id\": selected_result[\"best_plan_id\"]\n        }\n\n        self.hold_in(\"LOG_READY\", 0.0)",
+          "exit": "    def exit(self):\n        import json\n        import sys\n\n        print(json.dumps({\n                \"event\": \"Model Finalized\",\n                \"simulation_id\": self.simulation_id,\n                \"logged_result_count\": self.logged_result_count,\n                \"time\": get_current_time()\n            }), file=sys.stderr, flush=True)"
+        }
+      }
+    ],
+    "edges": [
+      [
+        "c1",
+        "c2",
+        "contains"
+      ],
+      [
+        "c1",
+        "c3",
+        "contains"
+      ],
+      [
+        "c1",
+        "c4",
+        "contains"
+      ],
+      [
+        "c1",
+        "c5",
+        "contains"
+      ],
+      [
+        "c1",
+        "c6",
+        "contains"
+      ],
+      [
+        "c2",
+        "c3",
+        "plan_out"
+      ],
+      [
+        "c3",
+        "c2",
+        "plan_result_out -> plan_result_in"
+      ],
+      [
+        "c2",
+        "c5",
+        "batch_meta_out / plan_result_out"
+      ],
+      [
+        "c3",
+        "c4",
+        "trace_out -> trace_in"
+      ],
+      [
+        "c5",
+        "c6",
+        "result_out -> result_in"
+      ]
+    ],
+    "groups": [
+      {
+        "members": [
+          "c2",
+          "c3",
+          "c4",
+          "c5",
+          "c6"
+        ],
+        "label": "children of icu_sepsis_treatment (coupled containment)"
+      }
+    ]
+  },
+  "eval": [
+    "Direct run (outputs_v54_icu) selected Plan 2 as final decision.",
+    "Model-assisted run (outputs_v54_icu) selected Plan 3 based on executable result evidence.",
+    "This case demonstrates how executable model feedback can materially change final reasoning output."
+  ],
+  "evalFlow": [
+    {
+      "id": "u1",
+      "step": "Step 1",
+      "title": "Task Prompt and Baseline Reasoning",
+      "paperStep": "Paper Mapping: Problem statement and direct inference baseline",
+      "artifact": "outputs_v54_icu/scene_1_direct_answer.md",
+      "result": "Direct run (no tool): model chose Plan 2 as unique winner from narrative reasoning."
+    },
+    {
+      "id": "u2",
+      "step": "Step 2",
+      "title": "LLM to DEVS Spec Packaging",
+      "paperStep": "Paper Mapping: World-model specification synthesis",
+      "artifact": "outputs_v54_icu/scene_1_spec.yaml",
+      "result": "LLM-generated model spec was normalized into benchmark-style YAML and used to construct executable DEVS code."
+    },
+    {
+      "id": "u3",
+      "step": "Step 3",
+      "title": "Executable DEVS Construction and Run",
+      "paperStep": "Paper Mapping: Transition-system execution over explicit states",
+      "artifact": "working_dirs/scene1_gen_v3/tasks/icu_sepsis_treatment/devs_project/run_icu_sepsis_treatment.py",
+      "result": "Simulation emitted plan_final and plan_comparison logs with scores plan_1=-35, plan_2=-5, plan_3=15, yielding unique best plan_3."
+    },
+    {
+      "id": "u4",
+      "step": "Step 4",
+      "title": "Tool-assisted Re-Reasoning",
+      "paperStep": "Paper Mapping: Model-in-the-loop decision refinement",
+      "artifact": "outputs_v54_icu/scene_1_assisted_answer.md",
+      "result": "After consuming tool evidence, the assisted run changed final decision from Plan 2 to Plan 3."
+    }
+  ]
+}

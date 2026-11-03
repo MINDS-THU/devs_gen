@@ -1,0 +1,1634 @@
+{
+  "id": "sa",
+  "title": "Strategic Airlift (SA) Case",
+  "tag": "Benchmark example from devs_fast + gpt-5.2 run artifact.",
+  "inputText": "general: |\n        ### General Implementation Requirements\n        1. Language and environment:\n        - Target Language: Python 3.10+\n        - Standard Libraries: argparse, sys, json, logging, collections, random, xdevs.\n\n        2. Input interface:\n        - Use argparse for all runtime parameters.\n        - No stdin is required in this benchmark case.\n\n        3. Output interface:\n        - stdout must contain JSONL event records only.\n        - Each record uses: {time, entity, event, payload}.\n        - stderr can contain non-KPI diagnostics.\n\n    scenario: |\n        ### Scenario: Strategic Airfreight Logistics\n        Objective:\n        Simulate a cargo logistics system with continuous pallet generation, FIFO queueing, aircraft assignment, delivery, return, and maintenance.\n\n        Entities:\n        - Facility: generates pallets at fixed intervals with unique ID and absolute expiration_time.\n        - Loading Queue: holds pallets and performs active expiration while pallets remain in queue.\n        - Fleet Coordinator: assigns next FIFO pallet whenever queue has cargo and aircraft is idle.\n        - Aircraft: cyclic states: idle -> load(0s) -> fly -> unload -> return -> maintenance -> idle.\n        - Destination: records pallet_delivered events and latency.\n\n        Rules:\n        - Time unit: seconds.\n        - Pallet deadline while queued: generation_time + pallet_expiration_time.\n        - Load time is zero.\n        - Capacity per aircraft trip is one pallet.\n        - No preemption after departure.\n        - Fair assignment uses FIFO.\n\n    args_input_output: |\n        Command line args:\n        - --duration (float)\n        - --num_aircraft (int)\n        - --pallet_interval (float)\n        - --pallet_expiration_time (float)\n        - --flight_time (float)\n        - --unload_time (float)\n        - --return_time (float)\n        - --maintenance_time (float)\n\n        stdin:\n        - Not required.\n\n        stdout JSONL schema:\n        {\n          \"time\": <float>,\n          \"entity\": <\"facility\"|\"queue\"|\"coordinator\"|\"aircraft\"|\"destination\">,\n          \"event\": <str>,\n          \"payload\": <dict>\n        }\n\n        Required event family includes:\n        - facility: pallet_generated\n        - queue: pallet_queued, pallet_expired\n        - coordinator: assignment_created\n        - aircraft: depart, return, maintenance_start, maintenance_end\n        - destination: pallet_delivered",
+  "sources": {
+    "input": "benchmark/SA/SA.yaml",
+    "plan": "devs_tester2/active_runs/devs_fast_gpt-5.2/SA_example/strategic_airlift/devs_project/_analysis_logs/snapshot_stage_2_construction.json",
+    "code": "devs_tester2/active_runs/devs_fast_gpt-5.2/SA_example/strategic_airlift/devs_project/",
+    "eval": "devs_tester2/active_runs/devs_fast_gpt-5.2/SA_example/strategic_airlift_eval_results/summary.json + benchmark/SA/checker.py"
+  },
+  "planTree": {
+    "id": "sa-root",
+    "name": "StrategicAirlift_D0",
+    "type": "coupled",
+    "summary": "Facility generation -> queue/coordinator assignment -> fleet cycles -> destination delivery logs",
+    "initArgs": [
+      "total_duration",
+      "num_aircraft",
+      "pallet_interval",
+      "pallet_expiration_time",
+      "flight_time",
+      "unload_time",
+      "return_time",
+      "maintenance_time"
+    ],
+    "initArgsTyped": [
+      {
+        "name": "total_duration",
+        "type": "float"
+      },
+      {
+        "name": "num_aircraft",
+        "type": "int"
+      },
+      {
+        "name": "pallet_interval",
+        "type": "float"
+      },
+      {
+        "name": "pallet_expiration_time",
+        "type": "float"
+      },
+      {
+        "name": "flight_time",
+        "type": "float"
+      },
+      {
+        "name": "unload_time",
+        "type": "float"
+      },
+      {
+        "name": "return_time",
+        "type": "float"
+      },
+      {
+        "name": "maintenance_time",
+        "type": "float"
+      }
+    ],
+    "ports": {
+      "input": [],
+      "output": []
+    },
+    "portsTyped": {
+      "input": [],
+      "output": []
+    },
+    "details": {
+      "function": "Top-level coupled model wires four major subsystems: FacilityGenerator, OpsCenterQueueCoordinator, AircraftFleet, and DestinationSink.",
+      "logging": "Root container itself does not emit KPI logs; required events are produced by submodels (facility, queue, coordinator, aircraft, destination).",
+      "schemas": "No boundary ports. Config args define deterministic timing and fleet size. Event schema is enforced by checker on generated JSONL records."
+    },
+    "children": [
+      {
+        "id": "sa-facility",
+        "name": "FacilityGenerator",
+        "type": "atomic",
+        "summary": "Deterministic pallet source at t=0 and fixed interval thereafter",
+        "initArgs": [
+          "pallet_interval",
+          "pallet_expiration_time"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "pallet_interval",
+            "type": "float"
+          },
+          {
+            "name": "pallet_expiration_time",
+            "type": "float"
+          }
+        ],
+        "ports": {
+          "input": [],
+          "output": [
+            "pallet_out"
+          ]
+        },
+        "portsTyped": {
+          "input": [],
+          "output": [
+            {
+              "name": "pallet_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "details": {
+          "function": "Emits pallet_out={pallet_id,gen_time,expiration_time}. expiration_time is absolute and equals gen_time + pallet_expiration_time.",
+          "logging": "Logs pallet_generated with payload {pallet_id, expiration_time}.",
+          "schemas": "pallet_out carries full pallet tuple for queue insertion and deadline checks."
+        },
+        "children": []
+      },
+      {
+        "id": "sa-ops",
+        "name": "OpsCenterQueueCoordinator",
+        "type": "coupled",
+        "summary": "Queue with active expiration + idle-aircraft assignment coordinator",
+        "initArgs": [
+          "num_aircraft"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "num_aircraft",
+            "type": "int"
+          }
+        ],
+        "ports": {
+          "input": [
+            "pallet_in",
+            "aircraft_idle_in"
+          ],
+          "output": [
+            "assignment_out"
+          ]
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "pallet_in",
+              "type": "dict"
+            },
+            {
+              "name": "aircraft_idle_in",
+              "type": "dict"
+            }
+          ],
+          "output": [
+            {
+              "name": "assignment_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "details": {
+          "function": "Couples LoadingQueueWithExpiration and IdleAssignmentCoordinator through dequeue request/response and queue status signals.",
+          "logging": "assignment_created is emitted by IdleAssignmentCoordinator; queue logs are emitted by LoadingQueueWithExpiration.",
+          "schemas": "assignment_out={aircraft_id,pallet}; queue status and dequeue handshake are internal couplings."
+        },
+        "children": [
+          {
+            "id": "sa-queue",
+            "name": "LoadingQueueWithExpiration",
+            "type": "atomic",
+            "summary": "FIFO queue with exact expiration at expiration_time",
+            "initArgs": [],
+            "initArgsTyped": [],
+            "ports": {
+              "input": [
+                "pallet_in",
+                "dequeue_req_in"
+              ],
+              "output": [
+                "pallet_out",
+                "queue_status_out"
+              ]
+            },
+            "portsTyped": {
+              "input": [
+                {
+                  "name": "pallet_in",
+                  "type": "dict"
+                },
+                {
+                  "name": "dequeue_req_in",
+                  "type": "dict"
+                }
+              ],
+              "output": [
+                {
+                  "name": "pallet_out",
+                  "type": "dict"
+                },
+                {
+                  "name": "queue_status_out",
+                  "type": "dict"
+                }
+              ]
+            },
+            "details": {
+              "function": "Applies arrival->expiration->dequeue ordering at same timestamp. Emits queue_size updates after enqueue/expire/dequeue.",
+              "logging": "Logs pallet_queued and pallet_expired with required payload fields.",
+              "schemas": "pallet_in={pallet_id,gen_time,expiration_time}; dequeue_req_in={request:\"next\"}; pallet_out excludes expiration_time by design."
+            },
+            "children": []
+          },
+          {
+            "id": "sa-assign",
+            "name": "IdleAssignmentCoordinator",
+            "type": "atomic",
+            "summary": "Matches lowest-id idle aircraft with next FIFO pallet",
+            "initArgs": [
+              "num_aircraft"
+            ],
+            "initArgsTyped": [
+              {
+                "name": "num_aircraft",
+                "type": "int"
+              }
+            ],
+            "ports": {
+              "input": [
+                "aircraft_idle_in",
+                "queue_status_in",
+                "pallet_in"
+              ],
+              "output": [
+                "assignment_out",
+                "dequeue_req_out"
+              ]
+            },
+            "portsTyped": {
+              "input": [
+                {
+                  "name": "aircraft_idle_in",
+                  "type": "dict"
+                },
+                {
+                  "name": "queue_status_in",
+                  "type": "dict"
+                },
+                {
+                  "name": "pallet_in",
+                  "type": "dict"
+                }
+              ],
+              "output": [
+                {
+                  "name": "assignment_out",
+                  "type": "dict"
+                },
+                {
+                  "name": "dequeue_req_out",
+                  "type": "dict"
+                }
+              ]
+            },
+            "details": {
+              "function": "Tracks known idle aircraft and queue size; dispatches dequeue request then emits assignment_created when pallet arrives.",
+              "logging": "Logs assignment_created plus model lifecycle diagnostics.",
+              "schemas": "assignment_out={aircraft_id,pallet:{pallet_id,gen_time}}; dequeue_req_out={request:\"next\"}."
+            },
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "sa-fleet",
+        "name": "AircraftFleet",
+        "type": "coupled",
+        "summary": "Fleet-level broadcast + per-aircraft mission/maintenance cycles + event mux",
+        "initArgs": [
+          "num_aircraft",
+          "flight_time",
+          "unload_time",
+          "return_time",
+          "maintenance_time"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "num_aircraft",
+            "type": "int"
+          },
+          {
+            "name": "flight_time",
+            "type": "float"
+          },
+          {
+            "name": "unload_time",
+            "type": "float"
+          },
+          {
+            "name": "return_time",
+            "type": "float"
+          },
+          {
+            "name": "maintenance_time",
+            "type": "float"
+          }
+        ],
+        "ports": {
+          "input": [
+            "assignment_in"
+          ],
+          "output": [
+            "aircraft_idle_out",
+            "delivery_out"
+          ]
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "assignment_in",
+              "type": "dict"
+            }
+          ],
+          "output": [
+            {
+              "name": "aircraft_idle_out",
+              "type": "dict"
+            },
+            {
+              "name": "delivery_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "details": {
+          "function": "Broadcasts assignments to AircraftUnit instances, merges idle/delivery events, and seeds initial idle signals.",
+          "logging": "Aircraft mission and maintenance events are emitted by child atomic models.",
+          "schemas": "delivery_out={pallet_id,aircraft_id,latency}; aircraft_idle_out={aircraft_id}."
+        },
+        "children": [
+          {
+            "id": "sa-fleet-mux",
+            "name": "FleetEventMux",
+            "type": "atomic",
+            "summary": "Fleet-level idle/delivery mux; seeds initial idle aircraft notifications",
+            "initArgs": [
+              "num_aircraft"
+            ],
+            "initArgsTyped": [
+              {
+                "name": "num_aircraft",
+                "type": "int"
+              }
+            ],
+            "ports": {
+              "input": [
+                "aircraft_idle_in",
+                "delivery_in"
+              ],
+              "output": [
+                "aircraft_idle_out",
+                "delivery_out"
+              ]
+            },
+            "portsTyped": {
+              "input": [
+                {
+                  "name": "aircraft_idle_in",
+                  "type": "dict"
+                },
+                {
+                  "name": "delivery_in",
+                  "type": "dict"
+                }
+              ],
+              "output": [
+                {
+                  "name": "aircraft_idle_out",
+                  "type": "dict"
+                },
+                {
+                  "name": "delivery_out",
+                  "type": "dict"
+                }
+              ]
+            },
+            "details": {
+              "function": "Collects per-aircraft idle/delivery events and forwards them as fleet-level outputs.",
+              "logging": "Seeds initial idle events for aircraft_id=1..num_aircraft at t=0.",
+              "schemas": "aircraft_idle_out={aircraft_id}; delivery_out={pallet_id,aircraft_id,latency}."
+            },
+            "children": []
+          },
+          {
+            "id": "sa-aircraft-unit-template",
+            "name": "AircraftUnit (per aircraft instance)",
+            "type": "coupled",
+            "summary": "Each aircraft_i has a mission controller + maintenance controller",
+            "initArgs": [
+              "aircraft_id",
+              "flight_time",
+              "unload_time",
+              "return_time",
+              "maintenance_time"
+            ],
+            "initArgsTyped": [
+              {
+                "name": "aircraft_id",
+                "type": "int"
+              },
+              {
+                "name": "flight_time",
+                "type": "float"
+              },
+              {
+                "name": "unload_time",
+                "type": "float"
+              },
+              {
+                "name": "return_time",
+                "type": "float"
+              },
+              {
+                "name": "maintenance_time",
+                "type": "float"
+              }
+            ],
+            "ports": {
+              "input": [
+                "assignment_in"
+              ],
+              "output": [
+                "idle_out",
+                "delivery_out"
+              ]
+            },
+            "portsTyped": {
+              "input": [
+                {
+                  "name": "assignment_in",
+                  "type": "dict"
+                }
+              ],
+              "output": [
+                {
+                  "name": "idle_out",
+                  "type": "dict"
+                },
+                {
+                  "name": "delivery_out",
+                  "type": "dict"
+                }
+              ]
+            },
+            "details": {
+              "function": "assignment_in enters mission controller; maintenance_start and maintenance_done are coupled internally; idle_out and delivery_out are exported upward.",
+              "logging": "Mission controller emits depart/return/maintenance_start; maintenance controller emits maintenance_end.",
+              "schemas": "delivery_out={pallet_id,aircraft_id,latency}; idle_out={aircraft_id}."
+            },
+            "children": [
+              {
+                "id": "sa-aircraft-mission",
+                "name": "AircraftMissionController",
+                "type": "coupled",
+                "summary": "Mission phase logic with MissionStateMachine + MissionLogEmitter",
+                "initArgs": [
+                  "aircraft_id",
+                  "flight_time",
+                  "unload_time",
+                  "return_time"
+                ],
+                "initArgsTyped": [
+                  {
+                    "name": "aircraft_id",
+                    "type": "int"
+                  },
+                  {
+                    "name": "flight_time",
+                    "type": "float"
+                  },
+                  {
+                    "name": "unload_time",
+                    "type": "float"
+                  },
+                  {
+                    "name": "return_time",
+                    "type": "float"
+                  }
+                ],
+                "ports": {
+                  "input": [
+                    "assignment_in",
+                    "maintenance_done_in"
+                  ],
+                  "output": [
+                    "delivery_out",
+                    "maintenance_start_out"
+                  ]
+                },
+                "portsTyped": {
+                  "input": [
+                    {
+                      "name": "assignment_in",
+                      "type": "dict"
+                    },
+                    {
+                      "name": "maintenance_done_in",
+                      "type": "dict"
+                    }
+                  ],
+                  "output": [
+                    {
+                      "name": "delivery_out",
+                      "type": "dict"
+                    },
+                    {
+                      "name": "maintenance_start_out",
+                      "type": "dict"
+                    }
+                  ]
+                },
+                "details": {
+                  "function": "Runs mission state transitions: IDLE -> FLYING -> UNLOADING -> RETURNING.",
+                  "logging": "Emits mission event records via log_out to MissionLogEmitter.",
+                  "schemas": "delivery_out includes latency; maintenance_start_out triggers maintenance controller."
+                },
+                "children": [
+                  {
+                    "id": "sa-aircraft-mission-sm",
+                    "name": "MissionStateMachine",
+                    "type": "atomic",
+                    "summary": "Core mission DEVS state machine for depart/unload/return timing",
+                    "initArgs": [
+                      "aircraft_id",
+                      "flight_time",
+                      "unload_time",
+                      "return_time"
+                    ],
+                    "initArgsTyped": [
+                      {
+                        "name": "aircraft_id",
+                        "type": "int"
+                      },
+                      {
+                        "name": "flight_time",
+                        "type": "float"
+                      },
+                      {
+                        "name": "unload_time",
+                        "type": "float"
+                      },
+                      {
+                        "name": "return_time",
+                        "type": "float"
+                      }
+                    ],
+                    "ports": {
+                      "input": [
+                        "assignment_in",
+                        "maintenance_done_in"
+                      ],
+                      "output": [
+                        "delivery_out",
+                        "maintenance_start_out",
+                        "log_out"
+                      ]
+                    },
+                    "portsTyped": {
+                      "input": [
+                        {
+                          "name": "assignment_in",
+                          "type": "dict"
+                        },
+                        {
+                          "name": "maintenance_done_in",
+                          "type": "dict"
+                        }
+                      ],
+                      "output": [
+                        {
+                          "name": "delivery_out",
+                          "type": "dict"
+                        },
+                        {
+                          "name": "maintenance_start_out",
+                          "type": "dict"
+                        },
+                        {
+                          "name": "log_out",
+                          "type": "dict"
+                        }
+                      ]
+                    },
+                    "details": {
+                      "function": "Generates depart/return/maintenance_start events and delivery payloads with checker-consistent cycle timing.",
+                      "logging": "Mission events are emitted as log records through log_out port.",
+                      "schemas": "delivery_out={pallet_id,aircraft_id,latency}; log_out={time,entity,event,payload}."
+                    },
+                    "children": []
+                  },
+                  {
+                    "id": "sa-aircraft-mission-log",
+                    "name": "MissionLogEmitter",
+                    "type": "atomic",
+                    "summary": "Consumes log_out records and writes standardized mission logs",
+                    "initArgs": [],
+                    "initArgsTyped": [],
+                    "ports": {
+                      "input": [
+                        "log_in"
+                      ],
+                      "output": []
+                    },
+                    "portsTyped": {
+                      "input": [
+                        {
+                          "name": "log_in",
+                          "type": "dict"
+                        }
+                      ],
+                      "output": []
+                    },
+                    "details": {
+                      "function": "Writes mission event records to simulation logger without altering payload semantics.",
+                      "logging": "No additional transformation; pass-through logging behavior.",
+                      "schemas": "log_in uses event schema {time,entity,event,payload}."
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "sa-aircraft-maint",
+                "name": "AircraftMaintenanceController",
+                "type": "atomic",
+                "summary": "Maintenance phase, then idle signal emission",
+                "initArgs": [
+                  "aircraft_id",
+                  "maintenance_time"
+                ],
+                "initArgsTyped": [
+                  {
+                    "name": "aircraft_id",
+                    "type": "int"
+                  },
+                  {
+                    "name": "maintenance_time",
+                    "type": "float"
+                  }
+                ],
+                "ports": {
+                  "input": [
+                    "maintenance_start_in"
+                  ],
+                  "output": [
+                    "idle_out",
+                    "maintenance_done_out"
+                  ]
+                },
+                "portsTyped": {
+                  "input": [
+                    {
+                      "name": "maintenance_start_in",
+                      "type": "dict"
+                    }
+                  ],
+                  "output": [
+                    {
+                      "name": "idle_out",
+                      "type": "dict"
+                    },
+                    {
+                      "name": "maintenance_done_out",
+                      "type": "dict"
+                    }
+                  ]
+                },
+                "details": {
+                  "function": "On maintenance_start_in, runs for maintenance_time then emits idle_out and maintenance_done_out.",
+                  "logging": "Logs maintenance_end at maintenance completion time.",
+                  "schemas": "idle_out={aircraft_id}; maintenance_done_out={aircraft_id}."
+                },
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sa-dst",
+        "name": "DestinationSink",
+        "type": "atomic",
+        "summary": "Records pallet_delivered events and final delivered count",
+        "initArgs": [],
+        "initArgsTyped": [],
+        "ports": {
+          "input": [
+            "delivery_in"
+          ],
+          "output": []
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "delivery_in",
+              "type": "dict"
+            }
+          ],
+          "output": []
+        },
+        "details": {
+          "function": "On each delivery_in message, logs pallet_delivered at current simulation time.",
+          "logging": "Logs model_created, model_initialized, pallet_delivered, model_finalized.",
+          "schemas": "delivery_in payload: {pallet_id:int, aircraft_id:int, latency:float}."
+        },
+        "children": []
+      }
+    ]
+  },
+  "codeGraph": {
+    "nodes": [
+      {
+        "id": "n1",
+        "label": "StrategicAirlift_D0 (coupled)",
+        "modelType": "coupled",
+        "x": 480,
+        "y": 46,
+        "ports": {
+          "in": [],
+          "out": []
+        },
+        "portsTyped": {
+          "in": [],
+          "out": []
+        },
+        "file": "StrategicAirlift_D0.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        total_duration: float,\n        num_aircraft: int,\n        pallet_interval: float,\n        pallet_expiration_time: float,\n        flight_time: float,\n        unload_time: float,\n        return_time: float,\n        maintenance_time: float,\n    ):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            total_duration (float): Total simulation time horizon in seconds (controller stops at this time).\n            num_aircraft (int): Number of aircraft (>=1). Aircraft IDs are 1..num_aircraft.\n            pallet_interval (float): Seconds between pallet generations.\n            pallet_expiration_time (float): Seconds after generation when a pallet expires if still in queue.\n            flight_time (float): Seconds for aircraft to fly facility -> destination.\n            unload_time (float): Seconds to unload at destination; delivery recorded at end of this interval.\n            return_time (float): Seconds for aircraft to fly destination -> facility.\n            maintenance_time (float): Seconds aircraft spends in maintenance after returning.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        # Internal/hardcoded parameters (not part of public ports)\n        self.param: dict = {\n            \"model_path\": \"StrategicAirlift_D0.StrategicAirlift_D0\",\n        }\n\n        # Normalize configuration\n        total_duration_n = float(total_duration)\n        num_aircraft_n = int(num_aircraft)\n        pallet_interval_n = float(pallet_interval)\n        pallet_expiration_time_n = float(pallet_expiration_time)\n        flight_time_n = float(flight_time)\n        unload_time_n = float(unload_time)\n        return_time_n = float(return_time)\n        maintenance_time_n = float(maintenance_time)\n\n        # No boundary ports (self-contained model).\n\n        # Instantiate sub-components\n        facility = FacilityGenerator(\n            name=\"facility\",\n            parent=self,\n            pallet_interval=pallet_interval_n,\n            pallet_expiration_time=pallet_expiration_time_n,\n        )\n\n        ops_center = OpsCenterQueueCoordinator(\n            name=\"ops_center\",\n            parent=self,\n            num_aircraft=num_aircraft_n,\n        )\n\n        fleet = AircraftFleet(\n            name=\"fleet\",\n            parent=self,\n            num_aircraft=num_aircraft_n,\n            flight_time=flight_time_n,\n            unload_time=unload_time_n,\n            return_time=return_time_n,\n            maintenance_time=maintenance_time_n,\n        )\n\n        destination = DestinationSink(\n            name=\"destination\",\n            parent=self,\n        )\n\n        # Register components\n        self.add_component(facility)\n        self.add_component(ops_center)\n        self.add_component(fleet)\n        self.add_component(destination)\n\n        # Define internal couplings (IC)\n        # Facility -> Ops Center (pallets)\n        self.add_coupling(facility.output[\"pallet_out\"], ops_center.input[\"pallet_in\"])\n\n        # Fleet -> Ops Center (idle aircraft notifications)\n        self.add_coupling(fleet.output[\"aircraft_idle_out\"], ops_center.input[\"aircraft_idle_in\"])\n\n        # Ops Center -> Fleet (assignment commands)\n        self.add_coupling(ops_center.output[\"assignment_out\"], fleet.input[\"assignment_in\"])\n\n        # Fleet -> Destination (delivery notifications)\n        self.add_coupling(fleet.output[\"delivery_out\"], destination.input[\"delivery_in\"])"
+        }
+      },
+      {
+        "id": "n2",
+        "label": "FacilityGenerator",
+        "modelType": "atomic",
+        "x": 90,
+        "y": 140,
+        "ports": {
+          "in": [],
+          "out": [
+            "pallet_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [],
+          "out": [
+            {
+              "name": "pallet_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/FacilityGenerator.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None, pallet_interval: float, pallet_expiration_time: float):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            pallet_interval (float): Seconds between pallet generations; next_generation_time increments by this value.\n            pallet_expiration_time (float): Seconds after generation when a pallet expires if still in queue;\n                expiration_time = gen_time + pallet_expiration_time.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        if not isinstance(pallet_interval, float):\n            raise TypeError(\"pallet_interval must be a float\")\n        if not isinstance(pallet_expiration_time, float):\n            raise TypeError(\"pallet_expiration_time must be a float\")\n        if pallet_interval <= 0.0:\n            raise ValueError(\"pallet_interval must be > 0.0\")\n        if pallet_expiration_time < 0.0:\n            raise ValueError(\"pallet_expiration_time must be >= 0.0\")\n\n        # Output port\n        self.add_out_port(Port(dict, \"pallet_out\"))\n\n        # Configuration\n        self.pallet_interval = pallet_interval\n        self.pallet_expiration_time = pallet_expiration_time\n\n        # Internal hardcoded parameters\n        self.param = {\n            \"phase_emit\": \"EMIT\"\n        }\n\n        # Internal state\n        self.next_pallet_id = 1\n        self.next_generation_time = 0.0\n\n        # Prepared output for next lambdaf (dict)\n        # structure:\n        #   pallet_id (int)\n        #   gen_time (float)\n        #   expiration_time (float)\n        self._out_pallet_prepared = {}",
+          "initialize": "    def initialize(self):\n        # Initial state required by specification\n        self.next_pallet_id = 1\n        self.next_generation_time = 0.0\n\n        # Prepare the very first pallet to be emitted at T=0.0\n        gen_time = 0.0\n        self._out_pallet_prepared = {\n            \"pallet_id\": int(self.next_pallet_id),\n            \"gen_time\": float(gen_time),\n            \"expiration_time\": float(gen_time + self.pallet_expiration_time),\n        }\n\n        # Update \"next\" pointers (deterministic)\n        self.next_pallet_id += 1\n        self.next_generation_time = gen_time + self.pallet_interval\n\n        # Schedule immediate output at T=0.0\n        self.hold_in(self.param[\"phase_emit\"], 0.0)",
+          "lambdaf": "    def lambdaf(self):\n        # Output only (no state changes, no logging)\n        if self.phase == self.param[\"phase_emit\"]:\n            self.output[\"pallet_out\"].add(self._out_pallet_prepared)",
+          "deltint": "    def deltint(self):\n        # Called right after lambdaf at the same simulation time\n        import json\n\n        if self.phase == self.param[\"phase_emit\"]:\n            t_now = float(get_current_time())\n\n            # Log the pallet that was generated/emitted at this time\n            print(json.dumps({\n                    \"time\": t_now,\n                    \"entity\": \"facility\",\n                    \"event\": \"pallet_generated\",\n                    \"payload\": {\n                        \"pallet_id\": int(self._out_pallet_prepared[\"pallet_id\"]),\n                        \"expiration_time\": float(self._out_pallet_prepared[\"expiration_time\"]),\n                    },\n                }), flush=True)\n\n            # Prepare the next pallet, scheduled at self.next_generation_time\n            next_gen_time = float(self.next_generation_time)\n            self._out_pallet_prepared = {\n                \"pallet_id\": int(self.next_pallet_id),\n                \"gen_time\": float(next_gen_time),\n                \"expiration_time\": float(next_gen_time + self.pallet_expiration_time),\n            }\n\n            # Advance deterministic schedule\n            self.next_pallet_id += 1\n            self.next_generation_time = next_gen_time + self.pallet_interval\n\n            # Schedule next internal event after exactly pallet_interval seconds\n            sigma = max(0.0, next_gen_time - t_now)\n            self.hold_in(self.param[\"phase_emit\"], sigma)\n        else:\n            # Should not happen; remain passive\n            self.hold_in(self.phase, float(\"inf\"))",
+          "deltext": "    def deltext(self, e: float):\n        # No external inputs required by specification; keep current schedule\n        remaining = self.ta() - float(e)\n        self.hold_in(self.phase, max(0.0, remaining))",
+          "exit": "    def exit(self):\n        # No extra stdout logs beyond required event logs\n        return"
+        }
+      },
+      {
+        "id": "n3",
+        "label": "OpsCenterQueueCoordinator (coupled)",
+        "modelType": "coupled",
+        "x": 300,
+        "y": 140,
+        "ports": {
+          "in": [
+            "pallet_in",
+            "aircraft_idle_in"
+          ],
+          "out": [
+            "assignment_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "pallet_in",
+              "type": "dict"
+            },
+            {
+              "name": "aircraft_idle_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "assignment_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/OpsCenterQueueCoordinator.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None, num_aircraft: int):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            num_aircraft (int): Number of aircraft in the fleet (>=1).\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        # Hardcoded internal parameters (none required for this coupled container).\n        self.param: dict = {\n            \"container_role\": \"queue_and_assignment_coupler\"\n        }\n\n        # System boundary ports\n        self.add_in_port(Port(dict, \"pallet_in\"))\n        self.add_in_port(Port(dict, \"aircraft_idle_in\"))\n        self.add_out_port(Port(dict, \"assignment_out\"))\n\n        # Sub-model instances\n        loading_queue = LoadingQueueWithExpiration(\n            name=\"loading_queue\",\n            parent=self,\n        )\n\n        idle_assignment_coordinator = IdleAssignmentCoordinator(\n            name=\"idle_assignment_coordinator\",\n            parent=self,\n            num_aircraft=num_aircraft,\n        )\n\n        # Register components\n        self.add_component(loading_queue)\n        self.add_component(idle_assignment_coordinator)\n\n        # Couplings\n        # EIC: external inputs -> internal submodels\n        self.add_coupling(self.input[\"pallet_in\"], loading_queue.input[\"pallet_in\"])\n        self.add_coupling(self.input[\"aircraft_idle_in\"], idle_assignment_coordinator.input[\"aircraft_idle_in\"])\n\n        # IC: queue <-> coordinator request/response loop + queue status feedback\n        self.add_coupling(idle_assignment_coordinator.output[\"dequeue_req_out\"], loading_queue.input[\"dequeue_req_in\"])\n        self.add_coupling(loading_queue.output[\"pallet_out\"], idle_assignment_coordinator.input[\"pallet_in\"])\n        self.add_coupling(loading_queue.output[\"queue_status_out\"], idle_assignment_coordinator.input[\"queue_status_in\"])\n\n        # EOC: internal outputs -> external outputs\n        self.add_coupling(idle_assignment_coordinator.output[\"assignment_out\"], self.output[\"assignment_out\"])"
+        }
+      },
+      {
+        "id": "n4",
+        "label": "LoadingQueueWithExpiration",
+        "modelType": "atomic",
+        "x": 220,
+        "y": 265,
+        "ports": {
+          "in": [
+            "pallet_in",
+            "dequeue_req_in"
+          ],
+          "out": [
+            "pallet_out",
+            "queue_status_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "pallet_in",
+              "type": "dict"
+            },
+            {
+              "name": "dequeue_req_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "pallet_out",
+              "type": "dict"
+            },
+            {
+              "name": "queue_status_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/OpsCenterQueueCoordinator_libs/LoadingQueueWithExpiration.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        # Ports (must match specification)\n        self.add_in_port(Port(dict, \"pallet_in\"))\n        self.add_in_port(Port(dict, \"dequeue_req_in\"))\n        self.add_out_port(Port(dict, \"pallet_out\"))\n        self.add_out_port(Port(dict, \"queue_status_out\"))\n\n        # Internal hardcoded parameters\n        self.param = {\n            \"infinity\": math.inf\n        }\n\n        # State\n        # queue: list[dict]\n        #   - (dict): pallet\n        #       pallet_id (int): Unique pallet identifier\n        #       gen_time (float): Generation time\n        #       expiration_time (float): Absolute expiration time while in queue\n        self.queue = []\n        self.total_expired = 0\n\n        # Pending outputs to be emitted in phase EMIT\n        self._pending_pallet_out = []         # list[dict] each: {'pallet_id': int, 'gen_time': float}\n        self._pending_queue_status_out = []   # list[dict] each: {'queue_size': int}\n\n        # Initialize phase (will be set in initialize())\n        self.hold_in(\"WAIT\", self.param[\"infinity\"])",
+          "initialize": "    def initialize(self):\n        self.queue = []\n        self.total_expired = 0\n        self._pending_pallet_out = []\n        self._pending_queue_status_out = []\n        self._schedule_next(t_now=get_current_time())",
+          "exit": "    def exit(self):\n        # No additional stdout events beyond the required operational events.\n        return",
+          "lambdaf": "    def lambdaf(self):\n        if self.phase == \"EMIT\":\n            for msg in self._pending_pallet_out:\n                self.output[\"pallet_out\"].add(msg)\n            for msg in self._pending_queue_status_out:\n                self.output[\"queue_status_out\"].add(msg)",
+          "deltint": "    def deltint(self):\n        t_now = get_current_time()\n        old_phase = self.phase\n\n        if old_phase == \"WAIT\":\n            # Internal timeout corresponds to the next expiration time\n            expired_any = self._expire_at_time(t_now=t_now)\n            if expired_any:\n                # One queue status update after the expiration removals batch (size changed)\n                self._pending_queue_status_out.append({\"queue_size\": int(len(self.queue))})\n\n        elif old_phase == \"EMIT\":\n            # Outputs have already been emitted in lambdaf; now clear pending output buffers.\n            self._pending_pallet_out = []\n            self._pending_queue_status_out = []\n\n        self._schedule_next(t_now=t_now)",
+          "deltext": "    def deltext(self, e: float):\n        t_now = get_current_time()\n\n        # Same-timestamp ordering requirement (queue-side):\n        # 1) arrivals/enqueue first\n        # 2) expiration removals for expiration_time == t_now\n        # Dequeue requests are processed after expiration to prevent assignment of expired pallets.\n        self._process_arrivals(t_now=t_now)\n        self._process_expirations_due_now(t_now=t_now)\n        self._process_dequeue_requests(t_now=t_now)\n\n        self._schedule_next(t_now=t_now)",
+          "deltcon": "    def deltcon(self):\n        \"\"\"\n        Confluent transition:\n            - For phase WAIT (expiration-driven internal events), process external first to guarantee:\n              arrivals/enqueue happen before expiration at the same timestamp.\n            - For phase EMIT (sigma=0), process internal first to clear pending outputs already emitted by lambdaf,\n              then process external.\n        Note: In DEVS, lambdaf is executed before deltcon when an internal event is scheduled.\n        \"\"\"\n        t_now = get_current_time()\n        old_phase = self.phase\n\n        if old_phase == \"WAIT\":\n            # External first\n            self._process_arrivals(t_now=t_now)\n            self._process_expirations_due_now(t_now=t_now)\n            self._process_dequeue_requests(t_now=t_now)\n\n            # Then internal (may attempt expiration again; should be no-ops if already expired in external processing)\n            expired_any = self._expire_at_time(t_now=t_now)\n            if expired_any:\n                self._pending_queue_status_out.append({\"queue_size\": int(len(self.queue))})\n\n        else:\n            # Internal first (especially important for EMIT to avoid re-emitting already-emitted pending messages)\n            if old_phase == \"EMIT\":\n                self._pending_pallet_out = []\n                self._pending_queue_status_out = []\n\n            # Then external\n            self._process_arrivals(t_now=t_now)\n            self._process_expirations_due_now(t_now=t_now)\n            self._process_dequeue_requests(t_now=t_now)\n\n        self._schedule_next(t_now=t_now)",
+          "_process_arrivals": "    def _process_arrivals(self, t_now: float):\n        import json\n\n        for pallet in self.input[\"pallet_in\"].values:\n            # Expected structure:\n            # pallet_id (int), gen_time (float), expiration_time (float)\n            self.queue.append(\n                {\n                    \"pallet_id\": int(pallet[\"pallet_id\"]),\n                    \"gen_time\": float(pallet[\"gen_time\"]),\n                    \"expiration_time\": float(pallet[\"expiration_time\"]),\n                }\n            )\n\n            print(json.dumps({\n                    \"time\": float(t_now),\n                    \"entity\": \"queue\",\n                    \"event\": \"pallet_queued\",\n                    \"payload\": {\n                        \"pallet_id\": int(pallet[\"pallet_id\"]),\n                        \"queue_size\": int(len(self.queue)),\n                    },\n                }), flush=True)\n\n            # After enqueue, queue size changed -> status update\n            self._pending_queue_status_out.append({\"queue_size\": int(len(self.queue))})",
+          "_process_expirations_due_now": "    def _process_expirations_due_now(self, t_now: float):\n        # Apply the required \"active expiration\" check at current timestamp for external transitions.\n        expired_any = self._expire_at_time(t_now=t_now)\n        if expired_any:\n            # One status update after expiration removals batch\n            self._pending_queue_status_out.append({\"queue_size\": int(len(self.queue))})",
+          "_process_dequeue_requests": "    def _process_dequeue_requests(self, t_now: float):\n        for req in self.input[\"dequeue_req_in\"].values:\n            # Expected structure:\n            # request (str): \"next\"\n            if str(req.get(\"request\", \"\")) != \"next\":\n                continue\n\n            if len(self.queue) > 0:\n                pallet = self.queue.pop(0)\n                self._pending_pallet_out.append(\n                    {\"pallet_id\": int(pallet[\"pallet_id\"]), \"gen_time\": float(pallet[\"gen_time\"])}\n                )\n                # Successful dequeue changes queue size -> status update\n                self._pending_queue_status_out.append({\"queue_size\": int(len(self.queue))})",
+          "_expire_at_time": "    def _expire_at_time(self, t_now: float) -> bool:\n        \"\"\"\n        Remove and log every pallet whose expiration_time equals t_now.\n        Returns:\n            (bool): True if at least one pallet expired.\n        \"\"\"\n        import json\n\n        if not self.queue:\n            return False\n\n        expired = []\n        kept = []\n        for pallet in self.queue:\n            if float(pallet[\"expiration_time\"]) == float(t_now):\n                expired.append(pallet)\n            else:\n                kept.append(pallet)\n\n        if not expired:\n            return False\n\n        self.queue = kept\n        for pallet in expired:\n            self.total_expired += 1\n            print(json.dumps({\n                    \"time\": float(t_now),\n                    \"entity\": \"queue\",\n                    \"event\": \"pallet_expired\",\n                    \"payload\": {\n                        \"pallet_id\": int(pallet[\"pallet_id\"]),\n                        \"total_expired\": int(self.total_expired),\n                    },\n                }), flush=True)\n        return True",
+          "_next_expiration_time": "    def _next_expiration_time(self) -> float:\n        if not self.queue:\n            return self.param[\"infinity\"]\n        return min(float(p[\"expiration_time\"]) for p in self.queue)",
+          "_schedule_next": "    def _schedule_next(self, t_now: float):\n        # If there are pending outputs, emit them immediately.\n        if self._pending_pallet_out or self._pending_queue_status_out:\n            self.hold_in(\"EMIT\", 0.0)\n            return\n\n        # Otherwise, wait until next expiration (or infinity if empty).\n        next_exp = self._next_expiration_time()\n        if next_exp == self.param[\"infinity\"]:\n            self.hold_in(\"WAIT\", self.param[\"infinity\"])\n            return\n\n        sigma = float(next_exp) - float(t_now)\n        # Guard against tiny negative due to float representation; keep exactness by scheduling immediate only if needed.\n        if sigma < 0.0:\n            sigma = 0.0\n        self.hold_in(\"WAIT\", sigma)"
+        }
+      },
+      {
+        "id": "n5",
+        "label": "IdleAssignmentCoordinator",
+        "modelType": "atomic",
+        "x": 380,
+        "y": 265,
+        "ports": {
+          "in": [
+            "aircraft_idle_in",
+            "queue_status_in",
+            "pallet_in"
+          ],
+          "out": [
+            "assignment_out",
+            "dequeue_req_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "aircraft_idle_in",
+              "type": "dict"
+            },
+            {
+              "name": "queue_status_in",
+              "type": "dict"
+            },
+            {
+              "name": "pallet_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "assignment_out",
+              "type": "dict"
+            },
+            {
+              "name": "dequeue_req_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/OpsCenterQueueCoordinator_libs/IdleAssignmentCoordinator.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None, num_aircraft: int):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            num_aircraft (int): Number of aircraft (>=1). Used for aircraft_id domain and deterministic tie-breaker.\n        \"\"\"\n        import json\n        import sys\n\n        super().__init__(name)\n        self.parent = parent\n\n        # Ports (must match specification)\n        self.add_in_port(Port(dict, \"aircraft_idle_in\"))\n        self.add_in_port(Port(dict, \"queue_status_in\"))\n        self.add_in_port(Port(dict, \"pallet_in\"))\n        self.add_out_port(Port(dict, \"assignment_out\"))\n        self.add_out_port(Port(dict, \"dequeue_req_out\"))\n\n        # Config\n        self.num_aircraft = int(num_aircraft)\n\n        # Internal hardcoded parameters\n        self.param = {\n            \"passive_sigma\": float(\"inf\")\n        }\n\n        # Internal state\n        self.idle_aircraft_ids = set()  # set[int]\n        self.queue_size = 0  # int\n\n        # Dequeue/assignment cycle tracking\n        self.request_in_flight = False  # bool\n        self.pending_aircraft_id = None  # int | None\n\n        # Prepared outputs (used only by lambdaf)\n        self._out_dequeue_req = None  # dict | None\n        self._out_assignment = None  # dict | None\n\n        # KPIs\n        self.total_assignments = 0  # int\n\n        print(json.dumps({\n                \"time\": float(get_current_time()),\n                \"entity\": \"coordinator\",\n                \"event\": \"model_created\",\n                \"payload\": {\n                    \"num_aircraft\": int(self.num_aircraft)\n                },\n            }), file=sys.stderr, flush=True)",
+          "initialize": "    def initialize(self):\n        import json\n        import sys\n\n        self.idle_aircraft_ids = set()\n        self.queue_size = 0\n\n        self.request_in_flight = False\n        self.pending_aircraft_id = None\n        self._out_dequeue_req = None\n        self._out_assignment = None\n\n        self.total_assignments = 0\n\n        print(json.dumps({\n                \"time\": float(get_current_time()),\n                \"entity\": \"coordinator\",\n                \"event\": \"model_initialized\",\n                \"payload\": {\n                    \"num_aircraft\": int(self.num_aircraft),\n                    \"queue_size\": int(self.queue_size),\n                    \"known_idle_aircraft\": int(len(self.idle_aircraft_ids)),\n                },\n            }), file=sys.stderr, flush=True)\n\n        self.hold_in(\"IDLE\", self.param[\"passive_sigma\"])",
+          "_log_error": "    def _log_error(self, message: str, payload: dict):\n        import json\n        import sys\n\n        err_payload = {\"message\": str(message)}\n        for k, v in payload.items():\n            err_payload[str(k)] = v\n        print(json.dumps({\n                \"time\": float(get_current_time()),\n                \"entity\": \"coordinator\",\n                \"event\": \"error\",\n                \"payload\": err_payload,\n            }), file=sys.stderr, flush=True)",
+          "_validate_aircraft_id": "    def _validate_aircraft_id(self, aircraft_id: int) -> bool:\n        if not isinstance(aircraft_id, int):\n            return False\n        return 1 <= aircraft_id <= self.num_aircraft",
+          "_maybe_start_dequeue_request": "    def _maybe_start_dequeue_request(self) -> bool:\n        \"\"\"\n        Start one dequeue request if:\n          - no request is currently in flight\n          - there is at least one known IDLE aircraft\n          - queue_size > 0\n        Deterministically selects the lowest aircraft_id among IDLE aircraft.\n        \"\"\"\n        if self.request_in_flight:\n            return False\n        if self.pending_aircraft_id is not None:\n            return False\n        if self.queue_size <= 0:\n            return False\n        if len(self.idle_aircraft_ids) == 0:\n            return False\n\n        aircraft_id = min(self.idle_aircraft_ids)\n        if not self._validate_aircraft_id(int(aircraft_id)):\n            self._log_error(\n                \"invalid_aircraft_id_in_idle_set\",\n                {\"aircraft_id\": int(aircraft_id), \"num_aircraft\": int(self.num_aircraft)},\n            )\n            # Remove it to avoid stalling forever\n            try:\n                self.idle_aircraft_ids.remove(aircraft_id)\n            except KeyError:\n                pass\n            return False\n\n        self.pending_aircraft_id = int(aircraft_id)\n        self.request_in_flight = True\n        self._out_dequeue_req = {\"request\": \"next\"}\n        return True",
+          "deltext": "    def deltext(self, e: float):\n        # Keep DEVS elapsed-time semantics (though we mostly use inf/0)\n        import json\n\n        _ = float(e)\n\n        # 1) Incorporate queue availability updates first\n        for msg in self.input[\"queue_status_in\"].values:\n            if not isinstance(msg, dict) or \"queue_size\" not in msg:\n                self._log_error(\"malformed_queue_status_in\", {\"received\": str(msg)})\n                continue\n            qsz = msg.get(\"queue_size\")\n            if not isinstance(qsz, int) or qsz < 0:\n                self._log_error(\"invalid_queue_size\", {\"queue_size\": qsz})\n                continue\n            self.queue_size = int(qsz)\n\n        # 2) Incorporate fleet transition inputs that imply aircraft IDLE\n        for msg in self.input[\"aircraft_idle_in\"].values:\n            if not isinstance(msg, dict) or \"aircraft_id\" not in msg:\n                self._log_error(\"malformed_aircraft_idle_in\", {\"received\": str(msg)})\n                continue\n            aid = msg.get(\"aircraft_id\")\n            if not isinstance(aid, int):\n                self._log_error(\"invalid_aircraft_id_type\", {\"aircraft_id\": str(aid)})\n                continue\n            if not self._validate_aircraft_id(int(aid)):\n                self._log_error(\n                    \"aircraft_id_out_of_range\",\n                    {\"aircraft_id\": int(aid), \"num_aircraft\": int(self.num_aircraft)},\n                )\n                continue\n            self.idle_aircraft_ids.add(int(aid))\n\n        # 3) Handle dequeued pallet inputs (response to request)\n        got_pallet_for_assignment = False\n        for msg in self.input[\"pallet_in\"].values:\n            if not isinstance(msg, dict) or (\"pallet_id\" not in msg) or (\"gen_time\" not in msg):\n                self._log_error(\"malformed_pallet_in\", {\"received\": str(msg)})\n                continue\n            if not self.request_in_flight or self.pending_aircraft_id is None:\n                self._log_error(\n                    \"unexpected_pallet_without_request\",\n                    {\"pallet_id\": msg.get(\"pallet_id\", -1)},\n                )\n                continue\n\n            pallet_id = msg.get(\"pallet_id\")\n            gen_time = msg.get(\"gen_time\")\n            if not isinstance(pallet_id, int) or not isinstance(gen_time, float):\n                self._log_error(\n                    \"invalid_pallet_fields\",\n                    {\"pallet_id\": str(pallet_id), \"gen_time\": str(gen_time)},\n                )\n                continue\n\n            aircraft_id = int(self.pending_aircraft_id)\n\n            # Create assignment payload for output (used by lambdaf)\n            self._out_assignment = {\n                \"aircraft_id\": int(aircraft_id),\n                \"pallet\": {\"pallet_id\": int(pallet_id), \"gen_time\": float(gen_time)},\n            }\n\n            # Logging required event (assignment_created)\n            print(json.dumps({\n                    \"time\": float(get_current_time()),\n                    \"entity\": \"coordinator\",\n                    \"event\": \"assignment_created\",\n                    \"payload\": {\"aircraft_id\": int(aircraft_id), \"pallet_id\": int(pallet_id)},\n                }), flush=True)\n\n            # Update internal tracking immediately (assignment created now; output will happen at same sim time)\n            self.total_assignments += 1\n            if aircraft_id in self.idle_aircraft_ids:\n                self.idle_aircraft_ids.remove(aircraft_id)\n            self.request_in_flight = False\n            self.pending_aircraft_id = None\n\n            # Locally decrement queue size to enable same-timestamp loop continuation without waiting for a status update\n            if self.queue_size > 0:\n                self.queue_size = max(0, int(self.queue_size) - 1)\n\n            got_pallet_for_assignment = True\n\n            # Only one assignment can be output per internal event; if multiple pallets arrive, it's an error.\n            # We will ignore additional pallets in this same transition after first valid one.\n            break\n\n        # Decide next phase\n        if got_pallet_for_assignment:\n            self.hold_in(\"SEND_ASSIGNMENT\", 0.0)\n            return\n\n        # If we are not emitting an assignment now, try to start a dequeue request (assignment loop step)\n        if self._maybe_start_dequeue_request():\n            self.hold_in(\"SEND_DEQUEUE_REQ\", 0.0)\n            return\n\n        # Otherwise, remain passive\n        self.hold_in(\"IDLE\", self.param[\"passive_sigma\"])",
+          "lambdaf": "    def lambdaf(self):\n        # Output only; no state changes here.\n        if self.phase == \"SEND_DEQUEUE_REQ\":\n            if isinstance(self._out_dequeue_req, dict):\n                self.output[\"dequeue_req_out\"].add(self._out_dequeue_req)\n        elif self.phase == \"SEND_ASSIGNMENT\":\n            if isinstance(self._out_assignment, dict):\n                self.output[\"assignment_out\"].add(self._out_assignment)",
+          "deltint": "    def deltint(self):\n        # Internal transition after outputs have been emitted.\n        if self.phase == \"SEND_DEQUEUE_REQ\":\n            self._out_dequeue_req = None\n            # Wait for pallet_in (response)\n            self.hold_in(\"IDLE\", self.param[\"passive_sigma\"])\n            return\n\n        if self.phase == \"SEND_ASSIGNMENT\":\n            self._out_assignment = None\n            # Continue loop: request next pallet if possible\n            if self._maybe_start_dequeue_request():\n                self.hold_in(\"SEND_DEQUEUE_REQ\", 0.0)\n            else:\n                self.hold_in(\"IDLE\", self.param[\"passive_sigma\"])\n            return\n\n        # IDLE (passive): remain passive\n        self.hold_in(\"IDLE\", self.param[\"passive_sigma\"])",
+          "exit": "    def exit(self):\n        import json\n        import sys\n\n        print(json.dumps({\n                \"time\": float(get_current_time()),\n                \"entity\": \"coordinator\",\n                \"event\": \"model_exit\",\n                \"payload\": {\n                    \"total_assignments\": int(self.total_assignments),\n                    \"final_queue_size\": int(self.queue_size),\n                    \"known_idle_aircraft\": int(len(self.idle_aircraft_ids)),\n                    \"request_in_flight\": bool(self.request_in_flight),\n                },\n            }), file=sys.stderr, flush=True)"
+        }
+      },
+      {
+        "id": "n6",
+        "label": "AircraftFleet (coupled)",
+        "modelType": "coupled",
+        "x": 760,
+        "y": 130,
+        "ports": {
+          "in": [
+            "assignment_in"
+          ],
+          "out": [
+            "aircraft_idle_out",
+            "delivery_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "assignment_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "aircraft_idle_out",
+              "type": "dict"
+            },
+            {
+              "name": "delivery_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/AircraftFleet.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        num_aircraft: int,\n        flight_time: float,\n        unload_time: float,\n        return_time: float,\n        maintenance_time: float,\n    ):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): The parent model. If None, the model is a root model.\n            num_aircraft (int): Number of aircraft in the fleet (>=1). Aircraft IDs are 1..num_aircraft.\n            flight_time (float): Seconds for aircraft to fly facility -> destination.\n            unload_time (float): Seconds to unload at destination.\n            return_time (float): Seconds for aircraft to fly destination -> facility.\n            maintenance_time (float): Seconds aircraft spends in maintenance after returning.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        self.param: dict = {\n            \"model_path\": \"StrategicAirlift_D0.AircraftFleet.AircraftFleet\"\n        }\n\n        # Normalize configuration\n        num_aircraft_n: int = int(num_aircraft)\n        flight_time_n: float = float(flight_time)\n        unload_time_n: float = float(unload_time)\n        return_time_n: float = float(return_time)\n        maintenance_time_n: float = float(maintenance_time)\n\n        # Define boundary ports\n        self.add_in_port(Port(dict, \"assignment_in\"))\n        self.add_out_port(Port(dict, \"aircraft_idle_out\"))\n        self.add_out_port(Port(dict, \"delivery_out\"))\n\n        # Instantiate event mux (seeds initial idle and forwards events)\n        event_mux = FleetEventMux(\n            name=\"event_mux\",\n            parent=self,\n            num_aircraft=num_aircraft_n,\n        )\n        self.add_component(event_mux)\n\n        # Instantiate aircraft units and couple\n        aircraft_units: list[AircraftUnit] = []\n        for aircraft_id in range(1, num_aircraft_n + 1):\n            unit = AircraftUnit(\n                name=f\"aircraft_{aircraft_id}\",\n                parent=self,\n                aircraft_id=int(aircraft_id),\n                flight_time=flight_time_n,\n                unload_time=unload_time_n,\n                return_time=return_time_n,\n                maintenance_time=maintenance_time_n,\n            )\n            self.add_component(unit)\n            aircraft_units.append(unit)\n\n            # EIC: broadcast assignments to each aircraft unit\n            self.add_coupling(self.input[\"assignment_in\"], unit.input[\"assignment_in\"])\n\n            # IC: per-aircraft events to mux inputs\n            self.add_coupling(unit.output[\"idle_out\"], event_mux.input[\"aircraft_idle_in\"])\n            self.add_coupling(unit.output[\"delivery_out\"], event_mux.input[\"delivery_in\"])\n\n        # EOC: mux outputs to fleet outputs\n        self.add_coupling(event_mux.output[\"aircraft_idle_out\"], self.output[\"aircraft_idle_out\"])\n        self.add_coupling(event_mux.output[\"delivery_out\"], self.output[\"delivery_out\"])\n\n"
+        }
+      },
+      {
+        "id": "n7",
+        "label": "FleetEventMux",
+        "modelType": "atomic",
+        "x": 760,
+        "y": 255,
+        "ports": {
+          "in": [
+            "aircraft_idle_in",
+            "delivery_in"
+          ],
+          "out": [
+            "aircraft_idle_out",
+            "delivery_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "aircraft_idle_in",
+              "type": "dict"
+            },
+            {
+              "name": "delivery_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "aircraft_idle_out",
+              "type": "dict"
+            },
+            {
+              "name": "delivery_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/AircraftFleet_libs/FleetEventMux.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None, num_aircraft: int):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            num_aircraft (int): Number of aircraft (>=1). Used only to emit initial IDLE notifications for aircraft IDs\n                1..num_aircraft at T=0.0.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        # Ports (must match specification)\n        self.add_in_port(Port(dict, \"aircraft_idle_in\"))\n        self.add_in_port(Port(dict, \"delivery_in\"))\n        self.add_out_port(Port(dict, \"aircraft_idle_out\"))\n        self.add_out_port(Port(dict, \"delivery_out\"))\n\n        # Internal hardcoded parameters\n        self.param = {\n            \"phase_seed\": \"SEED\",\n            \"phase_forward\": \"FORWARD\",\n            \"phase_passive\": \"PASSIVE\",\n        }\n\n        # Config\n        self.num_aircraft = int(num_aircraft)\n\n        # Internal buffers (prepared in initialize/deltint/deltext; emitted in lambdaf)\n        self._seed_msgs: list[dict] = []\n        self._idle_buf: list[dict] = []\n        self._delivery_buf: list[dict] = []\n\n        self._seed_done: bool = False",
+          "initialize": "    def initialize(self):\n        self._idle_buf = []\n        self._delivery_buf = []\n\n        n = self.num_aircraft if self.num_aircraft > 0 else 0\n        self._seed_msgs = [{\"aircraft_id\": int(i)} for i in range(1, n + 1)]\n        self._seed_done = False\n\n        # Schedule seeding output at T=0.0\n        self.hold_in(self.param[\"phase_seed\"], 0.0)",
+          "lambdaf": "    def lambdaf(self):\n        # Output only; no state changes here\n        if self.phase == self.param[\"phase_seed\"]:\n            for msg in self._seed_msgs:\n                self.output[\"aircraft_idle_out\"].add(msg)\n\n        elif self.phase == self.param[\"phase_forward\"]:\n            for msg in self._idle_buf:\n                self.output[\"aircraft_idle_out\"].add(msg)\n            for msg in self._delivery_buf:\n                self.output[\"delivery_out\"].add(msg)",
+          "deltint": "    def deltint(self):\n        # Internal transition occurs immediately after lambdaf (output already emitted)\n        if self.phase == self.param[\"phase_seed\"]:\n            self._seed_done = True\n            self._seed_msgs = []\n\n            if self._idle_buf or self._delivery_buf:\n                self.hold_in(self.param[\"phase_forward\"], 0.0)\n            else:\n                self.hold_in(self.param[\"phase_passive\"], float(\"inf\"))\n            return\n\n        if self.phase == self.param[\"phase_forward\"]:\n            # Clear forwarded buffers after emission\n            self._idle_buf = []\n            self._delivery_buf = []\n            self.hold_in(self.param[\"phase_passive\"], float(\"inf\"))\n            return\n\n        # PASSIVE should not timeout, but keep it safe\n        self.hold_in(self.param[\"phase_passive\"], float(\"inf\"))",
+          "deltext": "    def deltext(self, e: float):\n        # External transition: buffer inputs; schedule immediate forwarding if appropriate.\n        # NOTE: Must not override SEED at T=0.0 (seeding must happen).\n        has_any = False\n\n        for msg in self.input[\"aircraft_idle_in\"].values:\n            # Expected structure: {\"aircraft_id\": int}\n            if isinstance(msg, dict):\n                self._idle_buf.append(msg)\n                has_any = True\n\n        for msg in self.input[\"delivery_in\"].values:\n            # Expected structure: {\"pallet_id\": int, \"aircraft_id\": int, \"latency\": float}\n            if isinstance(msg, dict):\n                self._delivery_buf.append(msg)\n                has_any = True\n\n        if not has_any:\n            # No new information: just reduce remaining time (if any)\n            remaining = self.ta()\n            if remaining != float(\"inf\"):\n                remaining = max(0.0, remaining - float(e))\n            self.hold_in(self.phase, remaining)\n            return\n\n        # If we are still in SEED (e.g., confluent at t=0), do not preempt seeding.\n        if (not self._seed_done) and self.phase == self.param[\"phase_seed\"]:\n            remaining = self.ta()\n            remaining = max(0.0, remaining - float(e))\n            self.hold_in(self.param[\"phase_seed\"], remaining)\n            return\n\n        # Otherwise, forward immediately at the same simulation time\n        self.hold_in(self.param[\"phase_forward\"], 0.0)",
+          "exit": "    def exit(self):\n        # No additional logging or results required by specification.\n        pass"
+        }
+      },
+      {
+        "id": "n8",
+        "label": "AircraftUnit aircraft_1 (coupled)",
+        "modelType": "coupled",
+        "x": 560,
+        "y": 255,
+        "ports": {
+          "in": [
+            "assignment_in"
+          ],
+          "out": [
+            "idle_out",
+            "delivery_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "assignment_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "idle_out",
+              "type": "dict"
+            },
+            {
+              "name": "delivery_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/AircraftFleet_libs/AircraftUnit.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        aircraft_id: int,\n        flight_time: float,\n        unload_time: float,\n        return_time: float,\n        maintenance_time: float,\n    ):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            aircraft_id (int): This unit's aircraft identifier.\n            flight_time (float): Seconds for facility -> destination flight.\n            unload_time (float): Seconds to unload at destination.\n            return_time (float): Seconds for destination -> facility return flight.\n            maintenance_time (float): Seconds aircraft spends in maintenance after returning.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        self.param = {\n            \"model_path\": \"StrategicAirlift_D0.AircraftFleet.AircraftUnit\",\n        }\n\n        # External boundary ports\n        self.add_in_port(Port(dict, \"assignment_in\"))\n        self.add_out_port(Port(dict, \"idle_out\"))\n        self.add_out_port(Port(dict, \"delivery_out\"))\n\n        # Normalize/cast configuration (primitives only)\n        aircraft_id_i = int(aircraft_id)\n        flight_time_f = float(flight_time)\n        unload_time_f = float(unload_time)\n        return_time_f = float(return_time)\n        maintenance_time_f = float(maintenance_time)\n\n        # Sub-components\n        aircraft_mission = AircraftMissionController(\n            name=\"aircraft_mission\",\n            parent=self,\n            aircraft_id=aircraft_id_i,\n            flight_time=flight_time_f,\n            unload_time=unload_time_f,\n            return_time=return_time_f,\n        )\n        aircraft_maintenance = AircraftMaintenanceController(\n            name=\"aircraft_maintenance\",\n            parent=self,\n            aircraft_id=aircraft_id_i,\n            maintenance_time=maintenance_time_f,\n        )\n\n        self.add_component(aircraft_mission)\n        self.add_component(aircraft_maintenance)\n\n        # Couplings\n        # EIC: external -> internal\n        self.add_coupling(self.input[\"assignment_in\"], aircraft_mission.input[\"assignment_in\"])\n\n        # IC: internal -> internal\n        self.add_coupling(\n            aircraft_mission.output[\"maintenance_start_out\"],\n            aircraft_maintenance.input[\"maintenance_start_in\"],\n        )\n        self.add_coupling(\n            aircraft_maintenance.output[\"maintenance_done_out\"],\n            aircraft_mission.input[\"maintenance_done_in\"],\n        )\n\n        # EOC: internal -> external\n        self.add_coupling(aircraft_maintenance.output[\"idle_out\"], self.output[\"idle_out\"])\n        self.add_coupling(aircraft_mission.output[\"delivery_out\"], self.output[\"delivery_out\"])\n\n"
+        }
+      },
+      {
+        "id": "n9",
+        "label": "AircraftUnit aircraft_2 (coupled)",
+        "modelType": "coupled",
+        "x": 950,
+        "y": 255,
+        "ports": {
+          "in": [
+            "assignment_in"
+          ],
+          "out": [
+            "idle_out",
+            "delivery_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "assignment_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "idle_out",
+              "type": "dict"
+            },
+            {
+              "name": "delivery_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/AircraftFleet_libs/AircraftUnit.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        aircraft_id: int,\n        flight_time: float,\n        unload_time: float,\n        return_time: float,\n        maintenance_time: float,\n    ):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            aircraft_id (int): This unit's aircraft identifier.\n            flight_time (float): Seconds for facility -> destination flight.\n            unload_time (float): Seconds to unload at destination.\n            return_time (float): Seconds for destination -> facility return flight.\n            maintenance_time (float): Seconds aircraft spends in maintenance after returning.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        self.param = {\n            \"model_path\": \"StrategicAirlift_D0.AircraftFleet.AircraftUnit\",\n        }\n\n        # External boundary ports\n        self.add_in_port(Port(dict, \"assignment_in\"))\n        self.add_out_port(Port(dict, \"idle_out\"))\n        self.add_out_port(Port(dict, \"delivery_out\"))\n\n        # Normalize/cast configuration (primitives only)\n        aircraft_id_i = int(aircraft_id)\n        flight_time_f = float(flight_time)\n        unload_time_f = float(unload_time)\n        return_time_f = float(return_time)\n        maintenance_time_f = float(maintenance_time)\n\n        # Sub-components\n        aircraft_mission = AircraftMissionController(\n            name=\"aircraft_mission\",\n            parent=self,\n            aircraft_id=aircraft_id_i,\n            flight_time=flight_time_f,\n            unload_time=unload_time_f,\n            return_time=return_time_f,\n        )\n        aircraft_maintenance = AircraftMaintenanceController(\n            name=\"aircraft_maintenance\",\n            parent=self,\n            aircraft_id=aircraft_id_i,\n            maintenance_time=maintenance_time_f,\n        )\n\n        self.add_component(aircraft_mission)\n        self.add_component(aircraft_maintenance)\n\n        # Couplings\n        # EIC: external -> internal\n        self.add_coupling(self.input[\"assignment_in\"], aircraft_mission.input[\"assignment_in\"])\n\n        # IC: internal -> internal\n        self.add_coupling(\n            aircraft_mission.output[\"maintenance_start_out\"],\n            aircraft_maintenance.input[\"maintenance_start_in\"],\n        )\n        self.add_coupling(\n            aircraft_maintenance.output[\"maintenance_done_out\"],\n            aircraft_mission.input[\"maintenance_done_in\"],\n        )\n\n        # EOC: internal -> external\n        self.add_coupling(aircraft_maintenance.output[\"idle_out\"], self.output[\"idle_out\"])\n        self.add_coupling(aircraft_mission.output[\"delivery_out\"], self.output[\"delivery_out\"])\n\n"
+        }
+      },
+      {
+        "id": "n10",
+        "label": "AircraftUnit aircraft_3...N (omitted)",
+        "modelType": "coupled",
+        "x": 1165,
+        "y": 255,
+        "ports": {
+          "in": [
+            "assignment_in"
+          ],
+          "out": [
+            "idle_out",
+            "delivery_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "assignment_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "idle_out",
+              "type": "dict"
+            },
+            {
+              "name": "delivery_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/AircraftFleet_libs/AircraftUnit.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        aircraft_id: int,\n        flight_time: float,\n        unload_time: float,\n        return_time: float,\n        maintenance_time: float,\n    ):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            aircraft_id (int): This unit's aircraft identifier.\n            flight_time (float): Seconds for facility -> destination flight.\n            unload_time (float): Seconds to unload at destination.\n            return_time (float): Seconds for destination -> facility return flight.\n            maintenance_time (float): Seconds aircraft spends in maintenance after returning.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        self.param = {\n            \"model_path\": \"StrategicAirlift_D0.AircraftFleet.AircraftUnit\",\n        }\n\n        # External boundary ports\n        self.add_in_port(Port(dict, \"assignment_in\"))\n        self.add_out_port(Port(dict, \"idle_out\"))\n        self.add_out_port(Port(dict, \"delivery_out\"))\n\n        # Normalize/cast configuration (primitives only)\n        aircraft_id_i = int(aircraft_id)\n        flight_time_f = float(flight_time)\n        unload_time_f = float(unload_time)\n        return_time_f = float(return_time)\n        maintenance_time_f = float(maintenance_time)\n\n        # Sub-components\n        aircraft_mission = AircraftMissionController(\n            name=\"aircraft_mission\",\n            parent=self,\n            aircraft_id=aircraft_id_i,\n            flight_time=flight_time_f,\n            unload_time=unload_time_f,\n            return_time=return_time_f,\n        )\n        aircraft_maintenance = AircraftMaintenanceController(\n            name=\"aircraft_maintenance\",\n            parent=self,\n            aircraft_id=aircraft_id_i,\n            maintenance_time=maintenance_time_f,\n        )\n\n        self.add_component(aircraft_mission)\n        self.add_component(aircraft_maintenance)\n\n        # Couplings\n        # EIC: external -> internal\n        self.add_coupling(self.input[\"assignment_in\"], aircraft_mission.input[\"assignment_in\"])\n\n        # IC: internal -> internal\n        self.add_coupling(\n            aircraft_mission.output[\"maintenance_start_out\"],\n            aircraft_maintenance.input[\"maintenance_start_in\"],\n        )\n        self.add_coupling(\n            aircraft_maintenance.output[\"maintenance_done_out\"],\n            aircraft_mission.input[\"maintenance_done_in\"],\n        )\n\n        # EOC: internal -> external\n        self.add_coupling(aircraft_maintenance.output[\"idle_out\"], self.output[\"idle_out\"])\n        self.add_coupling(aircraft_mission.output[\"delivery_out\"], self.output[\"delivery_out\"])\n\n"
+        }
+      },
+      {
+        "id": "n11",
+        "label": "A1 AircraftMissionController (coupled)",
+        "modelType": "coupled",
+        "x": 560,
+        "y": 370,
+        "ports": {
+          "in": [
+            "assignment_in",
+            "maintenance_done_in"
+          ],
+          "out": [
+            "delivery_out",
+            "maintenance_start_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "assignment_in",
+              "type": "dict"
+            },
+            {
+              "name": "maintenance_done_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "delivery_out",
+              "type": "dict"
+            },
+            {
+              "name": "maintenance_start_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/AircraftFleet_libs/AircraftUnit_libs/AircraftMissionController.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        aircraft_id: int,\n        flight_time: float,\n        unload_time: float,\n        return_time: float,\n    ):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): The parent model. If None, the model is a root model.\n            aircraft_id (int): This unit’s aircraft ID (1..num_aircraft).\n            flight_time (float): Seconds for aircraft to fly facility -> destination.\n            unload_time (float): Seconds to unload at destination; delivery recorded at end of this interval.\n            return_time (float): Seconds for aircraft to fly destination -> facility.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        self.param = {\n            \"model_path\": \"StrategicAirlift_D0.AircraftFleet.AircraftUnit.AircraftMissionController\",\n        }\n\n        # External boundary ports\n        self.add_in_port(Port(dict, \"assignment_in\"))\n        self.add_in_port(Port(dict, \"maintenance_done_in\"))\n\n        self.add_out_port(Port(dict, \"delivery_out\"))\n        self.add_out_port(Port(dict, \"maintenance_start_out\"))\n\n        # Sub-models\n        mission_sm = MissionStateMachine(\n            name=\"mission_sm\",\n            parent=self,\n            aircraft_id=int(aircraft_id),\n            flight_time=float(flight_time),\n            unload_time=float(unload_time),\n            return_time=float(return_time),\n        )\n        mission_log_emitter = MissionLogEmitter(\n            name=\"mission_log_emitter\",\n            parent=self,\n        )\n\n        self.add_component(mission_sm)\n        self.add_component(mission_log_emitter)\n\n        # Couplings\n        # EIC: inputs to mission state machine\n        self.add_coupling(self.input[\"assignment_in\"], mission_sm.input[\"assignment_in\"])\n        self.add_coupling(self.input[\"maintenance_done_in\"], mission_sm.input[\"maintenance_done_in\"])\n\n        # IC: mission logs to logger-emitter\n        self.add_coupling(mission_sm.output[\"log_out\"], mission_log_emitter.input[\"log_in\"])\n\n        # EOC: outputs from mission state machine\n        self.add_coupling(mission_sm.output[\"delivery_out\"], self.output[\"delivery_out\"])\n        self.add_coupling(mission_sm.output[\"maintenance_start_out\"], self.output[\"maintenance_start_out\"])\n\n"
+        }
+      },
+      {
+        "id": "n12",
+        "label": "A1 MissionStateMachine",
+        "modelType": "atomic",
+        "x": 500,
+        "y": 470,
+        "ports": {
+          "in": [
+            "assignment_in",
+            "maintenance_done_in"
+          ],
+          "out": [
+            "delivery_out",
+            "maintenance_start_out",
+            "log_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "assignment_in",
+              "type": "dict"
+            },
+            {
+              "name": "maintenance_done_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "delivery_out",
+              "type": "dict"
+            },
+            {
+              "name": "maintenance_start_out",
+              "type": "dict"
+            },
+            {
+              "name": "log_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/AircraftFleet_libs/AircraftUnit_libs/AircraftMissionController_libs/MissionStateMachine.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        aircraft_id: int,\n        flight_time: float,\n        unload_time: float,\n        return_time: float,\n    ):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model (e.g., 'aircraft_1_mission_sm').\n            parent (Coupled | None): The parent model. If None, the model is a root model.\n            aircraft_id (int): This unit’s aircraft ID (1..num_aircraft).\n            flight_time (float): Seconds for aircraft to fly facility -> destination.\n            unload_time (float): Seconds to unload at destination; delivery recorded at end of this interval.\n            return_time (float): Seconds for aircraft to fly destination -> facility.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        # Ports (must match specification)\n        self.add_in_port(Port(dict, \"assignment_in\"))\n        self.add_in_port(Port(dict, \"maintenance_done_in\"))\n        self.add_out_port(Port(dict, \"delivery_out\"))\n        self.add_out_port(Port(dict, \"maintenance_start_out\"))\n        self.add_out_port(Port(dict, \"log_out\"))\n\n        # Configuration\n        self.aircraft_id = int(aircraft_id)\n        self.flight_time = float(flight_time)\n        self.unload_time = float(unload_time)\n        self.return_time = float(return_time)\n\n        # Mission-related state (per spec)\n        self.current_pallet = None  # None | {'pallet_id': int, 'gen_time': float}\n        self.next_phase_time = None  # float | None (absolute)\n\n        # Internal control flags / pending outputs (prepared before lambdaf)\n        self._waiting_for_maintenance = False\n\n        self._emit_depart_now = False\n        self._pending_depart_log = None  # dict | None\n\n        self._pending_delivery = None  # dict | None\n\n        self._pending_return_logs = []  # list[dict]\n        self._pending_maintenance_start = None  # dict | None\n\n        # Initial DEVS state (finalized in initialize)\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "initialize": "    def initialize(self):\n        # Initial mission state (per spec)\n        self.current_pallet = None\n        self.next_phase_time = None\n\n        self._waiting_for_maintenance = False\n\n        self._emit_depart_now = False\n        self._pending_depart_log = None\n\n        self._pending_delivery = None\n\n        self._pending_return_logs = []\n        self._pending_maintenance_start = None\n\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "_make_log_record": "    def _make_log_record(self, event: str, payload: dict) -> dict:\n        \"\"\"\n        Args:\n            event (str): One of {'depart','return','maintenance_start'}.\n            payload (dict): Event payload, must be JSON-serializable and composed only of atomic primitives/dict/list.\n                (for 'depart') aircraft_id (int), pallet_id (int)\n                (for 'return') aircraft_id (int)\n                (for 'maintenance_start') aircraft_id (int)\n\n        Returns:\n            (dict): Log record with keys: time (float), entity (str), event (str), payload (dict)\n        \"\"\"\n        return {\n            \"time\": float(get_current_time()),\n            \"entity\": \"aircraft\",\n            \"event\": str(event),\n            \"payload\": payload,\n        }",
+          "lambdaf": "    def lambdaf(self):\n        # Output only. Do not mutate state here.\n        if self.phase == \"FLYING\" and self._emit_depart_now and self._pending_depart_log is not None:\n            self.output[\"log_out\"].add(self._pending_depart_log)\n\n        if self.phase == \"UNLOADING\" and self._pending_delivery is not None:\n            self.output[\"delivery_out\"].add(self._pending_delivery)\n\n        if self.phase == \"RETURNING\":\n            # RETURNING completion outputs\n            if self._pending_return_logs:\n                for rec in self._pending_return_logs:\n                    self.output[\"log_out\"].add(rec)\n            if self._pending_maintenance_start is not None:\n                self.output[\"maintenance_start_out\"].add(self._pending_maintenance_start)",
+          "deltint": "    def deltint(self):\n        old_phase = self.phase\n        _old_ta = self.ta()\n        now = float(get_current_time())\n\n        if old_phase == \"IDLE\":\n            # No internal events should happen in IDLE (sigma=inf), but keep safe.\n            self.hold_in(\"IDLE\", float(\"inf\"))\n            return\n\n        if old_phase == \"FLYING\":\n            # Two cases:\n            #   (A) Immediate 'depart' emission (sigma=0) when starting flight\n            #   (B) Flight completion (sigma=flight_time)\n            if self._emit_depart_now:\n                # (A) depart has been emitted in lambdaf; now schedule actual flight completion\n                self._emit_depart_now = False\n                self._pending_depart_log = None\n\n                # next_phase_time was already set at assignment acceptance\n                if self.next_phase_time is None:\n                    # Defensive fallback: schedule with configured flight_time\n                    self.next_phase_time = now + self.flight_time\n\n                remaining = max(0.0, float(self.next_phase_time) - now)\n                self.hold_in(\"FLYING\", remaining)\n                return\n\n            # (B) Flight completed: transition to UNLOADING and prepare delivery payload for UNLOADING completion\n            self.phase = \"UNLOADING\"\n            self.next_phase_time = now + self.unload_time\n\n            if self.current_pallet is not None:\n                pallet_id = int(self.current_pallet[\"pallet_id\"])\n                gen_time = float(self.current_pallet[\"gen_time\"])\n                delivery_time = now + self.unload_time\n                latency = float(delivery_time - gen_time)\n                self._pending_delivery = {\n                    \"pallet_id\": pallet_id,\n                    \"aircraft_id\": int(self.aircraft_id),\n                    \"latency\": latency,\n                }\n            else:\n                # Should not happen, but keep schema-safe\n                self._pending_delivery = None\n\n            self.hold_in(\"UNLOADING\", max(0.0, self.unload_time))\n            return\n\n        if old_phase == \"UNLOADING\":\n            # Delivery has been emitted in lambdaf; now transition to RETURNING and prepare RETURNING completion outputs.\n            self._pending_delivery = None\n\n            self.phase = \"RETURNING\"\n            self.next_phase_time = now + self.return_time\n\n            # Prepare RETURNING completion outputs (to be emitted at end of RETURNING)\n            self._pending_return_logs = [\n                self._make_log_record(\"return\", {\"aircraft_id\": int(self.aircraft_id)}),\n                self._make_log_record(\"maintenance_start\", {\"aircraft_id\": int(self.aircraft_id)}),\n            ]\n            self._pending_maintenance_start = {\"aircraft_id\": int(self.aircraft_id)}\n\n            self.hold_in(\"RETURNING\", max(0.0, self.return_time))\n            return\n\n        if old_phase == \"RETURNING\":\n            # RETURNING completion outputs have been emitted in lambdaf; now park and wait for maintenance_done_in.\n            self._pending_return_logs = []\n            self._pending_maintenance_start = None\n\n            # Clear/park mission timing; wait for maintenance completion\n            self.next_phase_time = None\n            self._waiting_for_maintenance = True\n\n            # current_pallet is no longer needed after mission completion\n            self.current_pallet = None\n\n            # Keep phase within allowed set; park indefinitely (await external)\n            self.hold_in(\"RETURNING\", float(\"inf\"))\n            return\n\n        # Defensive fallback\n        self.hold_in(old_phase, float(\"inf\"))",
+          "deltext": "    def deltext(self, e: float):\n        _ = float(e)\n        now = float(get_current_time())\n        phase_before = self.phase\n        sigma_before = self.ta()\n\n        accepted_assignment = False\n        maintenance_done = False\n\n        # Process assignment(s)\n        for msg in self.input[\"assignment_in\"].values:\n            # msg (dict):\n            #   aircraft_id (int)\n            #   pallet (dict): pallet_id (int), gen_time (float)\n            if accepted_assignment:\n                continue\n\n            try:\n                msg_aircraft_id = int(msg.get(\"aircraft_id\"))\n            except Exception:\n                continue\n\n            if msg_aircraft_id != int(self.aircraft_id):\n                continue\n\n            # Accept only if currently IDLE (per spec)\n            if self.phase != \"IDLE\":\n                continue\n\n            pallet = msg.get(\"pallet\", None)\n            if not isinstance(pallet, dict):\n                continue\n\n            if \"pallet_id\" not in pallet or \"gen_time\" not in pallet:\n                continue\n\n            pallet_id = int(pallet[\"pallet_id\"])\n            gen_time = float(pallet[\"gen_time\"])\n\n            # Accept assignment\n            self.current_pallet = {\"pallet_id\": pallet_id, \"gen_time\": gen_time}\n            self.next_phase_time = now + self.flight_time\n\n            # Prepare immediate depart log via a zero-time internal event in FLYING\n            self._pending_depart_log = self._make_log_record(\n                \"depart\",\n                {\"aircraft_id\": int(self.aircraft_id), \"pallet_id\": pallet_id},\n            )\n            self._emit_depart_now = True\n\n            # Start FLYING phase; schedule immediate output at same timestamp\n            self._waiting_for_maintenance = False\n            self.hold_in(\"FLYING\", 0.0)\n            accepted_assignment = True\n\n        # Process maintenance completion(s)\n        for msg in self.input[\"maintenance_done_in\"].values:\n            # msg (dict): {'aircraft_id': int}\n            try:\n                msg_aircraft_id = int(msg.get(\"aircraft_id\"))\n            except Exception:\n                continue\n\n            if msg_aircraft_id != int(self.aircraft_id):\n                continue\n\n            # Only act when actually waiting for maintenance completion\n            if not self._waiting_for_maintenance:\n                continue\n\n            # Reset to IDLE\n            self.current_pallet = None\n            self.next_phase_time = None\n            self._waiting_for_maintenance = False\n\n            # Clear any pending outputs just in case\n            self._emit_depart_now = False\n            self._pending_depart_log = None\n            self._pending_delivery = None\n            self._pending_return_logs = []\n            self._pending_maintenance_start = None\n\n            self.hold_in(\"IDLE\", float(\"inf\"))\n            maintenance_done = True\n\n        # If no state change occurred due to external events, preserve timing (deduct elapsed time)\n        if not accepted_assignment and not maintenance_done:\n            if sigma_before == float(\"inf\"):\n                self.hold_in(phase_before, float(\"inf\"))\n            else:\n                self.hold_in(phase_before, max(0.0, float(sigma_before) - float(e)))",
+          "exit": "    def exit(self):\n        # Cleanup only; no mission-event logs here (mission logs are emitted via log_out during simulation).\n        self.current_pallet = None\n        self.next_phase_time = None\n        self._waiting_for_maintenance = False\n\n        self._emit_depart_now = False\n        self._pending_depart_log = None\n        self._pending_delivery = None\n        self._pending_return_logs = []\n        self._pending_maintenance_start = None"
+        }
+      },
+      {
+        "id": "n13",
+        "label": "A1 MissionLogEmitter",
+        "modelType": "atomic",
+        "x": 670,
+        "y": 470,
+        "ports": {
+          "in": [
+            "log_in"
+          ],
+          "out": []
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "log_in",
+              "type": "dict"
+            }
+          ],
+          "out": []
+        },
+        "file": "StrategicAirlift_D0_libs/AircraftFleet_libs/AircraftUnit_libs/AircraftMissionController_libs/MissionLogEmitter.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): The parent model. If None, the model is a root model.\n        \"\"\"\n        super().__init__(name)\n        self.parent = parent\n\n        # Ports (must match specification)\n        self.add_in_port(Port(dict, \"log_in\"))\n\n        # Internal hardcoded parameters (none required, keep explicit container per standard)\n        self.param: dict = {}\n\n        # No buffered records by design (immediate forwarding)\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "initialize": "    def initialize(self):\n        # Ready/idle; no buffered records.\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "_validate_record": "    def _validate_record(self, record: dict):\n        if not isinstance(record, dict):\n            raise TypeError(\"MissionLogEmitter.log_in record must be a dict\")\n\n        expected_keys = {\"time\", \"entity\", \"event\", \"payload\"}\n        record_keys = set(record.keys())\n        if record_keys != expected_keys:\n            raise ValueError(f\"MissionLogEmitter.log_in record keys must be exactly {expected_keys}, got {record_keys}\")\n\n        if not isinstance(record[\"time\"], float):\n            raise TypeError(\"MissionLogEmitter.log_in['time'] must be a float\")\n        if not isinstance(record[\"entity\"], str):\n            raise TypeError(\"MissionLogEmitter.log_in['entity'] must be a str\")\n        if not isinstance(record[\"event\"], str):\n            raise TypeError(\"MissionLogEmitter.log_in['event'] must be a str\")\n        if not isinstance(record[\"payload\"], dict):\n            raise TypeError(\"MissionLogEmitter.log_in['payload'] must be a dict\")\n\n        event_name = record[\"event\"]\n        payload = record[\"payload\"]\n\n        if event_name == \"depart\":\n            payload_keys = set(payload.keys())\n            if payload_keys != {\"aircraft_id\", \"pallet_id\"}:\n                raise ValueError(\"depart payload must have exactly keys {'aircraft_id','pallet_id'}\")\n            if not isinstance(payload[\"aircraft_id\"], int):\n                raise TypeError(\"depart payload['aircraft_id'] must be an int\")\n            if not isinstance(payload[\"pallet_id\"], int):\n                raise TypeError(\"depart payload['pallet_id'] must be an int\")\n        elif event_name in {\"return\", \"maintenance_start\"}:\n            payload_keys = set(payload.keys())\n            if payload_keys != {\"aircraft_id\"}:\n                raise ValueError(f\"{event_name} payload must have exactly key {{'aircraft_id'}}\")\n            if not isinstance(payload[\"aircraft_id\"], int):\n                raise TypeError(f\"{event_name} payload['aircraft_id'] must be an int\")\n        else:\n            # Preserve schema; only validate the required mission events explicitly described by spec.\n            # Other events (if any) must still adhere to the top-level record schema above.\n            pass",
+          "deltext": "    def deltext(self, e: float):\n        import json\n\n        _ = e\n        for record in self.input[\"log_in\"].values:\n            self._validate_record(record)\n            # Forward unchanged record (no extra keys added here).\n            print(json.dumps(record), flush=True)\n\n        # Avoid re-processing if the runtime does not auto-clear the port.\n        self.input[\"log_in\"].clear()\n\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "lambdaf": "    def lambdaf(self):\n        # No output ports. (All forwarding is done via logger side-effect in deltext.)\n        return",
+          "deltint": "    def deltint(self):\n        # No internal events expected.\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "exit": "    def exit(self):\n        # No additional logs here to avoid introducing non-spec JSONL lines.\n        _ = get_current_time()\n        return"
+        }
+      },
+      {
+        "id": "n14",
+        "label": "A1 MaintenanceController",
+        "modelType": "atomic",
+        "x": 760,
+        "y": 370,
+        "ports": {
+          "in": [
+            "maintenance_start_in"
+          ],
+          "out": [
+            "idle_out",
+            "maintenance_done_out"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "maintenance_start_in",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "idle_out",
+              "type": "dict"
+            },
+            {
+              "name": "maintenance_done_out",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "StrategicAirlift_D0_libs/AircraftFleet_libs/AircraftUnit_libs/AircraftMaintenanceController.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None, aircraft_id: int, maintenance_time: float):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n            aircraft_id (int): This unit’s aircraft ID (1..num_aircraft).\n            maintenance_time (float): Seconds aircraft spends in maintenance after returning; aircraft becomes IDLE at end.\n        \"\"\"\n        import json\n        import sys\n\n        super().__init__(name)\n        self.parent = parent\n\n        # Ports (must match specification)\n        self.add_in_port(Port(dict, \"maintenance_start_in\"))\n        self.add_out_port(Port(dict, \"idle_out\"))\n        self.add_out_port(Port(dict, \"maintenance_done_out\"))\n\n        # Configuration\n        self.aircraft_id = int(aircraft_id)\n        self.maintenance_time = float(maintenance_time)\n\n        # Internal hardcoded parameters\n        self.param = {\n            \"passive_sigma\": float(\"inf\")\n        }\n\n        # State variables\n        self.next_phase_time = None  # float | None\n        self._pending_idle_payload = None  # dict | None\n        self._pending_maintenance_done_payload = None  # dict | None\n        self.maintenance_completed = 0  # KPI counter\n\n        # Initial scheduling (no initial output)\n        self.hold_in(\"IDLE\", self.param[\"passive_sigma\"])\n\n        # Log creation (schema must be exactly time/entity/event/payload)\n        print(json.dumps({\n                \"time\": float(get_current_time()),\n                \"entity\": \"aircraft\",\n                \"event\": \"model_created\",\n                \"payload\": {\n                    \"aircraft_id\": int(self.aircraft_id),\n                    \"maintenance_time\": float(self.maintenance_time),\n                },\n            }), file=sys.stderr, flush=True)",
+          "initialize": "    def initialize(self):\n        import json\n        import sys\n\n        self.next_phase_time = None\n        self._pending_idle_payload = None\n        self._pending_maintenance_done_payload = None\n        self.maintenance_completed = 0\n\n        self.hold_in(\"IDLE\", self.param[\"passive_sigma\"])\n\n        print(json.dumps({\n                \"time\": float(get_current_time()),\n                \"entity\": \"aircraft\",\n                \"event\": \"model_initialized\",\n                \"payload\": {\n                    \"aircraft_id\": int(self.aircraft_id),\n                    \"phase\": \"IDLE\",\n                },\n            }), file=sys.stderr, flush=True)",
+          "deltext": "    def deltext(self, e: float):\n        # External transition: handle maintenance start triggers.\n        current_time = float(get_current_time())\n\n        # Default: continue current phase with remaining time unless changed by an accepted trigger.\n        remaining = self.ta()\n        if math.isinf(remaining):\n            remaining_after_e = remaining\n        else:\n            remaining_after_e = max(0.0, float(remaining) - float(e))\n\n        started = False\n\n        for msg in self.input[\"maintenance_start_in\"].values:\n            # msg schema:\n            #   aircraft_id (int): target aircraft id\n            if not isinstance(msg, dict):\n                continue\n            if \"aircraft_id\" not in msg:\n                continue\n\n            msg_aircraft_id = msg[\"aircraft_id\"]\n            if isinstance(msg_aircraft_id, bool):\n                continue\n            if not isinstance(msg_aircraft_id, int):\n                continue\n\n            if int(msg_aircraft_id) != int(self.aircraft_id):\n                continue\n\n            # Accept trigger only if not already in MAINTENANCE (deterministic, no stacking).\n            if self.phase != \"MAINTENANCE\":\n                started = True\n                self.next_phase_time = current_time + float(self.maintenance_time)\n                self._pending_idle_payload = {\"aircraft_id\": int(self.aircraft_id)}\n                self._pending_maintenance_done_payload = {\"aircraft_id\": int(self.aircraft_id)}\n                self.hold_in(\"MAINTENANCE\", max(0.0, float(self.maintenance_time)))\n            # If already in MAINTENANCE, ignore additional triggers deterministically.\n\n        if not started:\n            self.hold_in(self.phase, remaining_after_e)",
+          "lambdaf": "    def lambdaf(self):\n        # Output function: output only, no state changes.\n        if self.phase == \"MAINTENANCE\":\n            if isinstance(self._pending_idle_payload, dict):\n                self.output[\"idle_out\"].add(self._pending_idle_payload)\n            if isinstance(self._pending_maintenance_done_payload, dict):\n                self.output[\"maintenance_done_out\"].add(self._pending_maintenance_done_payload)",
+          "deltint": "    def deltint(self):\n        # Internal transition: handle maintenance completion.\n        import json\n\n        current_time = float(get_current_time())\n\n        if self.phase == \"MAINTENANCE\":\n            # Maintenance completes now (time == next_phase_time by construction).\n            self.maintenance_completed += 1\n\n            # Required event log: maintenance_end\n            print(json.dumps({\n                    \"time\": float(current_time),\n                    \"entity\": \"aircraft\",\n                    \"event\": \"maintenance_end\",\n                    \"payload\": {\n                        \"aircraft_id\": int(self.aircraft_id),\n                    },\n                }), flush=True)\n\n            # Transition to IDLE\n            self.next_phase_time = None\n            self._pending_idle_payload = None\n            self._pending_maintenance_done_payload = None\n            self.hold_in(\"IDLE\", self.param[\"passive_sigma\"])\n        else:\n            # IDLE has no scheduled internal events; keep passive.\n            self.hold_in(\"IDLE\", self.param[\"passive_sigma\"])",
+          "exit": "    def exit(self):\n        # Final stats logging\n        import json\n        import sys\n\n        print(json.dumps({\n                \"time\": float(get_current_time()),\n                \"entity\": \"aircraft\",\n                \"event\": \"model_finalized\",\n                \"payload\": {\n                    \"aircraft_id\": int(self.aircraft_id),\n                    \"maintenance_completed\": int(self.maintenance_completed),\n                },\n            }), file=sys.stderr, flush=True)"
+        }
+      },
+      {
+        "id": "n15",
+        "label": "DestinationSink",
+        "modelType": "atomic",
+        "x": 1290,
+        "y": 130,
+        "ports": {
+          "in": [
+            "delivery_in"
+          ],
+          "out": []
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "delivery_in",
+              "type": "dict"
+            }
+          ],
+          "out": []
+        },
+        "file": "StrategicAirlift_D0_libs/DestinationSink.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None):\n        \"\"\"\n        Args:\n            name (str): The unique name of the model.\n            parent (Coupled | None): the parent model. If None, the model is a root model.\n        \"\"\"\n        import json\n        import sys\n\n        super().__init__(name)\n        self.parent = parent\n\n        # Ports (must match specification)\n        self.add_in_port(Port(dict, \"delivery_in\"))\n\n        # Internal hardcoded parameters (none required, but reserved for consistency)\n        self.param = {}\n\n        # Internal state\n        self.total_delivered = 0  # (int) cumulative deliveries recorded\n\n        # Initial DEVS state (will be set again in initialize())\n        self.hold_in(\"IDLE\", float(\"inf\"))\n\n        # Log creation (must conform to the required {time, entity, event, payload} schema)\n        print(json.dumps({\n                \"time\": float(get_current_time()),\n                \"entity\": \"destination\",\n                \"event\": \"model_created\",\n                \"payload\": {\"model_name\": str(self.name)},\n            }), file=sys.stderr, flush=True)",
+          "initialize": "    def initialize(self):\n        import json\n        import sys\n\n        self.total_delivered = 0\n        self.hold_in(\"IDLE\", float(\"inf\"))\n\n        print(json.dumps({\n                \"time\": float(get_current_time()),\n                \"entity\": \"destination\",\n                \"event\": \"model_initialized\",\n                \"payload\": {\"model_name\": str(self.name)},\n            }), file=sys.stderr, flush=True)",
+          "deltext": "    def deltext(self, e: float):\n        import json\n\n        _ = e  # elapsed time is not needed for this sink\n        t_now = float(get_current_time())\n\n        for delivery in self.input[\"delivery_in\"].values:\n            # Expected structure (dict):\n            #   pallet_id (int), aircraft_id (int), latency (float)\n            payload = {\n                \"pallet_id\": int(delivery[\"pallet_id\"]),\n                \"aircraft_id\": int(delivery[\"aircraft_id\"]),\n                \"latency\": float(delivery[\"latency\"]),\n            }\n\n            self.total_delivered += 1\n            print(json.dumps({\n                    \"time\": t_now,\n                    \"entity\": \"destination\",\n                    \"event\": \"pallet_delivered\",\n                    \"payload\": payload,\n                }), flush=True)\n\n        # Remain idle indefinitely\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "lambdaf": "    def lambdaf(self):\n        # No external outputs required by specification.\n        return",
+          "deltint": "    def deltint(self):\n        # No internal events; remain idle.\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "exit": "    def exit(self):\n        import json\n        import sys\n\n        print(json.dumps({\n                \"time\": float(get_current_time()),\n                \"entity\": \"destination\",\n                \"event\": \"model_finalized\",\n                \"payload\": {\"model_name\": str(self.name), \"total_delivered\": int(self.total_delivered)},\n            }), file=sys.stderr, flush=True)"
+        }
+      }
+    ],
+    "edges": [
+      [
+        "n1",
+        "n2",
+        "contains"
+      ],
+      [
+        "n1",
+        "n3",
+        "contains"
+      ],
+      [
+        "n1",
+        "n6",
+        "contains"
+      ],
+      [
+        "n1",
+        "n15",
+        "contains"
+      ],
+      [
+        "n2",
+        "n3",
+        "IC: pallet_out -> pallet_in"
+      ],
+      [
+        "n3",
+        "n6",
+        "IC: assignment_out -> assignment_in"
+      ],
+      [
+        "n6",
+        "n3",
+        "IC: aircraft_idle_out -> aircraft_idle_in"
+      ],
+      [
+        "n6",
+        "n15",
+        "IC: delivery_out -> delivery_in"
+      ],
+      [
+        "n3",
+        "n4",
+        "EIC: pallet_in"
+      ],
+      [
+        "n3",
+        "n5",
+        "EIC: aircraft_idle_in"
+      ],
+      [
+        "n5",
+        "n4",
+        "IC: dequeue_req_out -> dequeue_req_in"
+      ],
+      [
+        "n4",
+        "n5",
+        "IC: pallet_out -> pallet_in"
+      ],
+      [
+        "n4",
+        "n5",
+        "IC: queue_status_out -> queue_status_in"
+      ],
+      [
+        "n5",
+        "n3",
+        "EOC: assignment_out"
+      ],
+      [
+        "n6",
+        "n8",
+        "EIC broadcast: assignment_in"
+      ],
+      [
+        "n6",
+        "n9",
+        "EIC broadcast: assignment_in"
+      ],
+      [
+        "n6",
+        "n10",
+        "EIC broadcast: assignment_in"
+      ],
+      [
+        "n8",
+        "n7",
+        "IC: idle_out -> aircraft_idle_in"
+      ],
+      [
+        "n8",
+        "n7",
+        "IC: delivery_out -> delivery_in"
+      ],
+      [
+        "n9",
+        "n7",
+        "IC: idle_out -> aircraft_idle_in"
+      ],
+      [
+        "n9",
+        "n7",
+        "IC: delivery_out -> delivery_in"
+      ],
+      [
+        "n10",
+        "n7",
+        "IC: idle_out -> aircraft_idle_in"
+      ],
+      [
+        "n10",
+        "n7",
+        "IC: delivery_out -> delivery_in"
+      ],
+      [
+        "n7",
+        "n6",
+        "EOC: aircraft_idle_out"
+      ],
+      [
+        "n7",
+        "n6",
+        "EOC: delivery_out"
+      ],
+      [
+        "n8",
+        "n11",
+        "contains"
+      ],
+      [
+        "n8",
+        "n14",
+        "contains"
+      ],
+      [
+        "n11",
+        "n12",
+        "contains"
+      ],
+      [
+        "n11",
+        "n13",
+        "contains"
+      ],
+      [
+        "n8",
+        "n11",
+        "EIC: assignment_in"
+      ],
+      [
+        "n11",
+        "n8",
+        "EOC: delivery_out"
+      ],
+      [
+        "n14",
+        "n8",
+        "EOC: idle_out"
+      ],
+      [
+        "n11",
+        "n12",
+        "EIC: assignment_in + maintenance_done_in"
+      ],
+      [
+        "n12",
+        "n11",
+        "EOC: delivery_out + maintenance_start_out"
+      ],
+      [
+        "n12",
+        "n13",
+        "IC: log_out -> log_in"
+      ],
+      [
+        "n11",
+        "n14",
+        "IC: maintenance_start_out -> maintenance_start_in"
+      ],
+      [
+        "n14",
+        "n11",
+        "IC: maintenance_done_out -> maintenance_done_in"
+      ]
+    ],
+    "groups": [
+      {
+        "members": [
+          "n4",
+          "n5"
+        ],
+        "label": "children of OpsCenterQueueCoordinator"
+      },
+      {
+        "members": [
+          "n7",
+          "n8",
+          "n9",
+          "n10"
+        ],
+        "label": "children of AircraftFleet"
+      },
+      {
+        "members": [
+          "n11",
+          "n14"
+        ],
+        "label": "children of AircraftUnit aircraft_1"
+      },
+      {
+        "members": [
+          "n12",
+          "n13"
+        ],
+        "label": "children of A1 AircraftMissionController"
+      }
+    ]
+  },
+  "eval": [
+    "Debug-copy benchmark replay: Score_ope=1.0 and Score_beh=1.0 across 9 SA evaluation settings.",
+    "Pipeline: generated simulator entry -> benchmark/SA/sa_test_config.json test matrix -> benchmark/SA/checker.py scoring.",
+    "All key rule groups pass: output_format, pallet_lifecycle, aircraft_state_machine, coordinator_logic, metrics_accuracy.",
+    "Evaluation confirms timing consistency for return/maintenance_start lifecycle constraints.",
+    "Evaluation artifact: SA benchmark summary output + benchmark/SA/checker.py."
+  ],
+  "evalFlow": [
+    {
+      "id": "s1",
+      "step": "Step 1",
+      "title": "Load benchmark suite D and per-case runtime inputs for SA",
+      "paperStep": "Sec.4.1 + Sec.4.3",
+      "artifact": "benchmark/SA/sa_test_config.json",
+      "result": "Evaluator reads 9 SA settings (L0/L1/L2) with deterministic timing/fleet parameters and checker-side expectations.",
+      "sampleSelectionNote": "For readability, panel 4 shows one representative trace excerpt selected from all SA evaluation outputs. The underlying full log for this data point has 217 JSONL lines (time 0.0 to 501.0).",
+      "sampleConfig": "{\"name\":\"L1_Queue_Formation\",\"checker_args\":{\"test_name\":\"L1_Queue_Formation\",\"aircraft_count\":2,\"duration\":500.0},\"cases\":[{\"sim_args\":{\"--duration\":500.0,\"--num_aircraft\":2,\"--pallet_interval\":10.0,\"--pallet_expiration_time\":250.0,\"--flight_time\":30.0,\"--unload_time\":2.0,\"--return_time\":30.0,\"--maintenance_time\":5.0}}]}"
+    },
+    {
+      "id": "s2",
+      "step": "Step 2",
+      "title": "Execute generated model M(d_i) and emit JSONL trace T_i",
+      "paperStep": "Sec.2.1 simulator M(I,J) and trace T",
+      "artifact": ".../strategic_airlift_eval_results/*/model_output_run0.jsonl",
+      "result": "Each case emits required entity/event records for facility, queue, coordinator, aircraft, and destination.",
+      "sampleLogNote": "Shown below is an excerpt for L1_Queue_Formation. Full trace has 217 JSONL lines.",
+      "sampleLogs": "{\"time\":0.0,\"entity\":\"queue\",\"event\":\"pallet_queued\",\"payload\":{\"pallet_id\":1,\"queue_size\":1}}\n{\"time\":0.0,\"entity\":\"facility\",\"event\":\"pallet_generated\",\"payload\":{\"pallet_id\":1,\"expiration_time\":250.0}}\n{\"time\":0.0,\"entity\":\"coordinator\",\"event\":\"assignment_created\",\"payload\":{\"aircraft_id\":1,\"pallet_id\":1}}\n{\"time\":0.0,\"entity\":\"aircraft\",\"event\":\"depart\",\"payload\":{\"aircraft_id\":1,\"pallet_id\":1}}\n{\"time\":10.0,\"entity\":\"queue\",\"event\":\"pallet_queued\",\"payload\":{\"pallet_id\":2,\"queue_size\":1}}\n{\"time\":10.0,\"entity\":\"facility\",\"event\":\"pallet_generated\",\"payload\":{\"pallet_id\":2,\"expiration_time\":260.0}}\n{\"time\":10.0,\"entity\":\"coordinator\",\"event\":\"assignment_created\",\"payload\":{\"aircraft_id\":2,\"pallet_id\":2}}\n{\"time\":10.0,\"entity\":\"aircraft\",\"event\":\"depart\",\"payload\":{\"aircraft_id\":2,\"pallet_id\":2}}\n{\"time\":20.0,\"entity\":\"queue\",\"event\":\"pallet_queued\",\"payload\":{\"pallet_id\":3,\"queue_size\":1}}\n{\"time\":30.0,\"entity\":\"queue\",\"event\":\"pallet_queued\",\"payload\":{\"pallet_id\":4,\"queue_size\":2}}\n{\"time\":32.0,\"entity\":\"destination\",\"event\":\"pallet_delivered\",\"payload\":{\"pallet_id\":1,\"aircraft_id\":1,\"latency\":32.0}}\n{\"time\":42.0,\"entity\":\"destination\",\"event\":\"pallet_delivered\",\"payload\":{\"pallet_id\":2,\"aircraft_id\":2,\"latency\":32.0}}\n{\"time\":67.0,\"entity\":\"coordinator\",\"event\":\"assignment_created\",\"payload\":{\"aircraft_id\":1,\"pallet_id\":3}}\n{\"time\":77.0,\"entity\":\"coordinator\",\"event\":\"assignment_created\",\"payload\":{\"aircraft_id\":2,\"pallet_id\":4}}"
+    },
+    {
+      "id": "s3",
+      "step": "Step 3",
+      "title": "Apply SA checker rules over operational, micro-level, and macro-level constraints",
+      "paperStep": "Sec.4.1 Behavioral Conformance",
+      "artifact": "benchmark/SA/checker.py",
+      "result": "Checker verifies lifecycle integrity, state-machine timing, assignment logic, and latency correctness with per-case add_case accumulation."
+    },
+    {
+      "id": "s4",
+      "step": "Step 4",
+      "title": "Aggregate Score_ope/Score_beh over test suite D; SA run reaches 1.0/1.0",
+      "paperStep": "Sec.4.3 Eq.(1)",
+      "artifact": ".../strategic_airlift_eval_results/summary.json",
+      "result": "All 9 SA entries return score=1.0, so aggregate benchmark score is 1.0 for this demo run.",
+      "formula": "v_i = I(ExitCode=0) * I(NoTimeout) * I(ValidSchema(T_i))\nScore_ope = (1/N) * sum_i v_i\n\nc_i = (1/2) * v_i * (\n  sum_{r in R_micro} r(T_i) / |R_micro| +\n  sum_{r in R_macro} r(T_i) / |R_macro|\n)\nScore_beh = (1/N) * sum_i c_i",
+      "workedExample": "SA demo uses N=9 test cases.\n- All runs are operationally valid, so v_i=1 for all i and Score_ope=(1/9)*sum_i v_i=1.0.\n- All micro-level and macro-level rules pass, so c_i=1 for all i and Score_beh=(1/9)*sum_i c_i=1.0."
+    }
+  ],
+  "evalRuleGroups": [
+    {
+      "group": "Operational Success (Spec_ope)",
+      "rules": [
+        {
+          "name": "output_format",
+          "what": "Ensure valid simulation events exist and conform to required JSONL structure.",
+          "granularity": "Per run and per line-level schema checks.",
+          "checkerCode": "validate_log_entry_hook(): checks required keys {time,entity,event,payload}, valid entity/event set, payload dict type."
+        }
+      ]
+    },
+    {
+      "group": "Micro-level Consistency",
+      "rules": [
+        {
+          "name": "pallet_lifecycle",
+          "what": "Checks pallet conservation, deadline consistency, exact expiration timing, and delivery/assignment exclusivity.",
+          "granularity": "Per pallet lifecycle.",
+          "checkerCode": "_check_pallet_lifecycle(): verify reported_deadline == gen_time + configured expiration and lifecycle transitions."
+        },
+        {
+          "name": "aircraft_state_machine",
+          "what": "Validates cycle timing: Depart -> Return duration equals flight + unload + return; maintenance duration matches config.",
+          "granularity": "Per aircraft cycle.",
+          "checkerCode": "_check_aircraft_statemachine(): compares actual cycle deltas with configured flight/unload/return/maintenance."
+        }
+      ]
+    },
+    {
+      "group": "Macro-level Causality",
+      "rules": [
+        {
+          "name": "coordinator_logic",
+          "what": "Ensures near-zero load delay between assignment_created and matching depart event.",
+          "granularity": "Per assignment.",
+          "checkerCode": "_check_coordinator_logic(): find matching depart by aircraft_id+pallet_id and enforce zero-duration loading tolerance."
+        },
+        {
+          "name": "metrics_accuracy",
+          "what": "Verifies reported latency equals delivered_time - generated_time.",
+          "granularity": "Per delivered pallet.",
+          "checkerCode": "_check_metrics_accuracy(): compare payload latency to reconstructed timestamps for each delivered pallet."
+        }
+      ]
+    }
+  ]
+}

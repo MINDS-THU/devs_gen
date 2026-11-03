@@ -1,0 +1,432 @@
+{
+  "id": "wetlab",
+  "title": "Wet-Lab Case",
+  "tag": "A constructed workflow demo case.",
+  "inputText": "You are running a small biology lab for an 8-hour day (hour 0..8).\n\nEach sample X, Y, Z must follow:\n1) Preparation (1 hour, technician)\n2) Incubation (2 hours, incubator)\n3) Assay (1 hour, assay machine)\n\nBase rules:\n- One technician, one incubator, one assay machine (capacity 1 each)\n- Different resources can run in parallel\n- No preemption; strict stage order per sample\n- At same hour boundary, stage completions are processed before new starts\n\nAdditional biosafety lockout (delayed):\n- If an incubation starts at hour s, preparation is allowed at hour s\n- Preparation is blocked only at hour s+1\n- Blocked prep attempts are invalid and do not change state\n\nScoring:\n- completed_by_8 = number of samples whose assay finishes by hour 8\n- prep_bonus = +1 for each sample with preparation finished by hour 3\n- composite_score = 10 * completed_by_8 + prep_bonus\n- tie-breaker: fewer invalid actions\n\nStrategies are evaluated as fixed scripts (no rescheduling inside a strategy):\n- Strategy A: serial X then Y then Z\n- Strategy B: prepare X/Y/Z first, then downstream stages\n- Strategy C: pipelined script with overlap attempts at hours 1/2/3/5/7\n\nTask: choose the best strategy among fixed scripts and explain why.",
+  "sources": {
+    "input": "devs_reasoning_app/inputs/scene2_hard_v4.md",
+    "plan": "devs_reasoning_app/outputs_v4/scene_2_spec.yaml",
+    "code": "devs_reasoning_app/working_dirs/scene2_gen_v3/tasks/wet_lab_assay_scheduling/devs_project/",
+    "eval": "devs_reasoning_app/outputs_v5/scene_2_assisted_answer.md + outputs_v5_gpt41/scene_2_direct_answer.md + outputs_v5_gpt4omini/scene_2_direct_answer.md"
+  },
+  "planTree": {
+    "id": "wetlab-root",
+    "name": "wet_lab_assay_scheduling",
+    "type": "coupled",
+    "summary": "Batch schedule ingestion + deterministic lab transition + completion scoring",
+    "initArgs": [
+      "horizon",
+      "samples"
+    ],
+    "initArgsTyped": [
+      {
+        "name": "horizon",
+        "type": "int"
+      },
+      {
+        "name": "samples",
+        "type": "list[str]"
+      }
+    ],
+    "ports": {
+      "input": [
+        "episode_request"
+      ],
+      "output": [
+        "episode_result"
+      ]
+    },
+    "portsTyped": {
+      "input": [
+        {
+          "name": "episode_request",
+          "type": "dict"
+        }
+      ],
+      "output": [
+        {
+          "name": "episode_result",
+          "type": "dict"
+        }
+      ]
+    },
+    "details": {
+      "function": "Root model accepts one fixed strategy timeline payload, simulates hourly transitions with delayed biosafety lockout, and outputs composite scoring evidence.",
+      "logging": "Key logs: hour_state and final result with completed_sample_ids_by_deadline, prep_bonus, composite_score, invalid_action_count.",
+      "schemas": "episode_request:{horizon,samples,action_timeline} -> episode_result:{completed_samples_by_deadline,prep_bonus,composite_score,invalid_action_count}"
+    },
+    "children": [
+      {
+        "id": "wetlab-ingest",
+        "name": "schedule_ingestor",
+        "type": "atomic",
+        "summary": "Normalizes timeline into deterministic hour packets",
+        "initArgs": [
+          "horizon"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "horizon",
+            "type": "int"
+          }
+        ],
+        "ports": {
+          "input": [
+            "episode_request"
+          ],
+          "output": [
+            "hour_packet"
+          ]
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "episode_request",
+              "type": "dict"
+            }
+          ],
+          "output": [
+            {
+              "name": "hour_packet",
+              "type": "dict"
+            }
+          ]
+        },
+        "details": {
+          "function": "Converts full timeline into hour=0..horizon packets with stable ordering.",
+          "logging": "No business scoring; orchestration only.",
+          "schemas": "episode_request -> hour_packet:{episode_id,hour,actions}"
+        },
+        "children": []
+      },
+      {
+        "id": "wetlab-trans",
+        "name": "lab_transition",
+        "type": "atomic",
+        "summary": "Applies resource constraints and stage prerequisites hour by hour",
+        "initArgs": [
+          "horizon",
+          "samples"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "horizon",
+            "type": "int"
+          },
+          {
+            "name": "samples",
+            "type": "list[str]"
+          }
+        ],
+        "ports": {
+          "input": [
+            "hour_packet"
+          ],
+          "output": [
+            "final_state"
+          ]
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "hour_packet",
+              "type": "dict"
+            }
+          ],
+          "output": [
+            {
+              "name": "final_state",
+              "type": "dict"
+            }
+          ]
+        },
+        "details": {
+          "function": "Processes completion-before-action semantics, updates sample lifecycle states, and enforces delayed lockout (prep allowed at incubation start hour, blocked at next hour).",
+          "logging": "Emits hour_state traces with per-sample stage status.",
+          "schemas": "hour_packet -> final_state:{sample_stage,stage_times,invalid_action_count}"
+        },
+        "children": []
+      },
+      {
+        "id": "wetlab-score",
+        "name": "lab_result",
+        "type": "atomic",
+        "summary": "Scores completed assays by deadline",
+        "initArgs": [
+          "horizon"
+        ],
+        "initArgsTyped": [
+          {
+            "name": "horizon",
+            "type": "int"
+          }
+        ],
+        "ports": {
+          "input": [
+            "final_state"
+          ],
+          "output": [
+            "episode_result"
+          ]
+        },
+        "portsTyped": {
+          "input": [
+            {
+              "name": "final_state",
+              "type": "dict"
+            }
+          ],
+          "output": [
+            {
+              "name": "episode_result",
+              "type": "dict"
+            }
+          ]
+        },
+        "details": {
+          "function": "Computes completed_by_8, prep_bonus, and composite_score=10*completed+prep_bonus; tie-break uses invalid actions.",
+          "logging": "Emits result.",
+          "schemas": "final_state -> episode_result:{completed_samples_by_deadline,prep_bonus,composite_score,invalid_action_count}"
+        },
+        "children": []
+      }
+    ]
+  },
+  "codeGraph": {
+    "nodes": [
+      {
+        "id": "w1",
+        "label": "wet_lab_assay_scheduling (coupled)",
+        "modelType": "coupled",
+        "x": 420,
+        "y": 70,
+        "ports": {
+          "in": [
+            "episode_request"
+          ],
+          "out": [
+            "episode_result"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "episode_request",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "episode_result",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "wet_lab_assay_scheduling.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        horizon: int = 8,\n        samples: list | None = None,\n    ):\n        super().__init__(name)\n        self.parent = parent\n\n        self.add_in_port(Port(dict, \"episode_request\"))\n        self.add_out_port(Port(dict, \"episode_result\"))\n\n        ingestor = schedule_ingestor(\"schedule_ingestor\", self, horizon=int(horizon))\n        transition = lab_transition(\n            \"lab_transition\", self, horizon=int(horizon), samples=samples\n        )\n        scorer = lab_result(\"lab_result\", self, horizon=int(horizon))\n\n        self.add_component(ingestor)\n        self.add_component(transition)\n        self.add_component(scorer)\n\n        self.add_coupling(\n            self.input[\"episode_request\"], ingestor.input[\"episode_request\"]\n        )\n        self.add_coupling(\n            ingestor.output[\"hour_packet\"], transition.input[\"hour_packet\"]\n        )\n        self.add_coupling(transition.output[\"final_state\"], scorer.input[\"final_state\"])\n        self.add_coupling(\n            scorer.output[\"episode_result\"], self.output[\"episode_result\"]\n        )\n\n"
+        }
+      },
+      {
+        "id": "w2",
+        "label": "schedule_ingestor",
+        "modelType": "atomic",
+        "x": 190,
+        "y": 260,
+        "ports": {
+          "in": [
+            "episode_request"
+          ],
+          "out": [
+            "hour_packet"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "episode_request",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "hour_packet",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "wet_lab_assay_scheduling_libs/schedule_ingestor.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None, horizon: int = 8):\n        super().__init__(name)\n        self.parent = parent\n        self.horizon = int(horizon)\n\n        self.add_in_port(Port(dict, \"episode_request\"))\n        self.add_out_port(Port(dict, \"hour_packet\"))\n\n        self.episode_id = \"episode_0\"\n        self.schedule = {}\n        self.cursor = 0\n        self.pending = None\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "initialize": "    def initialize(self):\n        self.episode_id = \"episode_0\"\n        self.schedule = {}\n        self.cursor = 0\n        self.pending = None\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "deltext": "    def deltext(self, e: float):\n        _ = e\n        incoming = list(self.input[\"episode_request\"].values)\n        if not incoming:\n            return\n        req = incoming[-1]\n        self.episode_id = str(req.get(\"episode_id\", \"episode_0\"))\n        self.schedule = {}\n        for block in req.get(\"action_timeline\", []):\n            h = int(block.get(\"hour\", -1))\n            if h < 0 or h > self.horizon:\n                continue\n            actions = block.get(\"actions\", [])\n            if isinstance(actions, list):\n                self.schedule[h] = list(actions)\n        self.cursor = 0\n        self.pending = {\n            \"episode_id\": self.episode_id,\n            \"hour\": 0,\n            \"actions\": self.schedule.get(0, []),\n        }\n        self.hold_in(\"EMIT\", 0.0)",
+          "lambdaf": "    def lambdaf(self):\n        if self.phase == \"EMIT\" and self.pending is not None:\n            self.output[\"hour_packet\"].add(self.pending)",
+          "deltint": "    def deltint(self):\n        if self.phase != \"EMIT\":\n            self.hold_in(\"IDLE\", float(\"inf\"))\n            return\n        if self.cursor >= self.horizon:\n            self.pending = None\n            self.hold_in(\"IDLE\", float(\"inf\"))\n            return\n        self.cursor += 1\n        self.pending = {\n            \"episode_id\": self.episode_id,\n            \"hour\": self.cursor,\n            \"actions\": self.schedule.get(self.cursor, []),\n        }\n        self.hold_in(\"EMIT\", 1.0)",
+          "exit": "    def exit(self):\n        return"
+        }
+      },
+      {
+        "id": "w3",
+        "label": "lab_transition",
+        "modelType": "atomic",
+        "x": 420,
+        "y": 260,
+        "ports": {
+          "in": [
+            "hour_packet"
+          ],
+          "out": [
+            "final_state"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "hour_packet",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "final_state",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "wet_lab_assay_scheduling_libs/lab_transition.py",
+        "methods": {
+          "__init__": "    def __init__(\n        self,\n        name: str,\n        parent: Coupled | None,\n        horizon: int = 8,\n        samples: list | None = None,\n    ):\n        super().__init__(name)\n        self.parent = parent\n        self.horizon = int(horizon)\n        self.samples = list(samples or [\"X\", \"Y\", \"Z\"])\n\n        self.add_in_port(Port(dict, \"hour_packet\"))\n        self.add_out_port(Port(dict, \"final_state\"))\n\n        self.pending = None\n        self.hold_in(\"IDLE\", float(\"inf\"))\n        self._reset_episode(\"episode_0\")",
+          "_reset_episode": "    def _reset_episode(self, episode_id: str):\n        self.episode_id = episode_id\n        self.sample_stage = {s: \"not_started\" for s in self.samples}\n        self.stage_times = {\n            s: {\n                \"preparation_start\": None,\n                \"preparation_end\": None,\n                \"incubation_start\": None,\n                \"incubation_end\": None,\n                \"assay_start\": None,\n                \"assay_end\": None,\n            }\n            for s in self.samples\n        }\n        self.resources = {\n            \"technician\": {\"busy_until\": -1, \"sample\": \"\", \"start_hour\": -1},\n            \"incubator\": {\"busy_until\": -1, \"sample\": \"\", \"start_hour\": -1},\n            \"assay_machine\": {\"busy_until\": -1, \"sample\": \"\", \"start_hour\": -1},\n        }\n        self.invalid = 0",
+          "initialize": "    def initialize(self):\n        self.pending = None\n        self._reset_episode(\"episode_0\")\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "_release_completed": "    def _release_completed(self, hour: int):\n        for r in [\"technician\", \"incubator\", \"assay_machine\"]:\n            if self.resources[r][\"busy_until\"] == hour:\n                self.resources[r][\"busy_until\"] = -1\n                self.resources[r][\"sample\"] = \"\"\n                self.resources[r][\"start_hour\"] = -1",
+          "_start": "    def _start(self, sample: str, stage: str, hour: int, duration: int, resource: str):\n        self.resources[resource][\"busy_until\"] = hour + duration\n        self.resources[resource][\"sample\"] = sample\n        self.resources[resource][\"start_hour\"] = hour\n        self.stage_times[sample][f\"{stage}_start\"] = hour\n        self.stage_times[sample][f\"{stage}_end\"] = hour + duration\n        if stage == \"preparation\":\n            self.sample_stage[sample] = \"preparing\"\n        elif stage == \"incubation\":\n            self.sample_stage[sample] = \"incubating\"\n        else:\n            self.sample_stage[sample] = \"assaying\"",
+          "_apply_stage_completions": "    def _apply_stage_completions(self, hour: int):\n        for s in self.samples:\n            if (\n                self.sample_stage[s] == \"preparing\"\n                and self.stage_times[s][\"preparation_end\"] == hour\n            ):\n                self.sample_stage[s] = \"prepared_waiting\"\n            if (\n                self.sample_stage[s] == \"incubating\"\n                and self.stage_times[s][\"incubation_end\"] == hour\n            ):\n                self.sample_stage[s] = \"incubated_waiting\"\n            if (\n                self.sample_stage[s] == \"assaying\"\n                and self.stage_times[s][\"assay_end\"] == hour\n            ):\n                self.sample_stage[s] = \"completed\"",
+          "_try_action": "    def _try_action(self, action: dict, hour: int):\n        at = str(action.get(\"type\", \"\"))\n        sample = str(action.get(\"sample\", \"\"))\n        if sample not in self.sample_stage:\n            self.invalid += 1\n            return\n\n        if at == \"start_preparation\":\n            incubator_busy = self.resources[\"incubator\"][\"busy_until\"] > hour\n            incubator_started = int(self.resources[\"incubator\"].get(\"start_hour\", -1))\n            second_hour_lockout = (\n                incubator_busy\n                and incubator_started >= 0\n                and hour >= incubator_started + 1\n            )\n            if (\n                self.sample_stage[sample] != \"not_started\"\n                or self.resources[\"technician\"][\"busy_until\"] > hour\n                or second_hour_lockout\n            ):\n                self.invalid += 1\n                return\n            self._start(sample, \"preparation\", hour, 1, \"technician\")\n            return\n\n        if at == \"start_incubation\":\n            if (\n                self.sample_stage[sample] != \"prepared_waiting\"\n                or self.resources[\"incubator\"][\"busy_until\"] > hour\n            ):\n                self.invalid += 1\n                return\n            self._start(sample, \"incubation\", hour, 2, \"incubator\")\n            return\n\n        if at == \"start_assay\":\n            if (\n                self.sample_stage[sample] != \"incubated_waiting\"\n                or self.resources[\"assay_machine\"][\"busy_until\"] > hour\n            ):\n                self.invalid += 1\n                return\n            self._start(sample, \"assay\", hour, 1, \"assay_machine\")\n            return\n\n        self.invalid += 1",
+          "deltext": "    def deltext(self, e: float):\n        import json\n\n        _ = e\n        for packet in self.input[\"hour_packet\"].values:\n            episode_id = str(packet[\"episode_id\"])\n            hour = int(packet[\"hour\"])\n            if episode_id != self.episode_id:\n                self._reset_episode(episode_id)\n\n            self._release_completed(hour)\n            self._apply_stage_completions(hour)\n\n            actions = packet.get(\"actions\", [])\n            for action in actions:\n                self._try_action(action, hour)\n\n            print(json.dumps({\n                    \"event\": \"hour_state\",\n                    \"episode_id\": self.episode_id,\n                    \"hour\": hour,\n                    \"sample_stage\": dict(self.sample_stage),\n                    \"invalid_action_count\": self.invalid,\n                }), flush=True)\n\n            if hour >= self.horizon:\n                self.pending = {\n                    \"episode_id\": self.episode_id,\n                    \"horizon\": self.horizon,\n                    \"sample_stage\": dict(self.sample_stage),\n                    \"stage_times\": self.stage_times,\n                    \"invalid_action_count\": self.invalid,\n                }\n                self.hold_in(\"EMIT\", 0.0)",
+          "lambdaf": "    def lambdaf(self):\n        if self.phase == \"EMIT\" and self.pending is not None:\n            self.output[\"final_state\"].add(self.pending)",
+          "deltint": "    def deltint(self):\n        self.pending = None\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "exit": "    def exit(self):\n        return"
+        }
+      },
+      {
+        "id": "w4",
+        "label": "lab_result",
+        "modelType": "atomic",
+        "x": 650,
+        "y": 260,
+        "ports": {
+          "in": [
+            "final_state"
+          ],
+          "out": [
+            "episode_result"
+          ]
+        },
+        "portsTyped": {
+          "in": [
+            {
+              "name": "final_state",
+              "type": "dict"
+            }
+          ],
+          "out": [
+            {
+              "name": "episode_result",
+              "type": "dict"
+            }
+          ]
+        },
+        "file": "wet_lab_assay_scheduling_libs/lab_result.py",
+        "methods": {
+          "__init__": "    def __init__(self, name: str, parent: Coupled | None, horizon: int = 8):\n        super().__init__(name)\n        self.parent = parent\n        self.horizon = int(horizon)\n\n        self.add_in_port(Port(dict, \"final_state\"))\n        self.add_out_port(Port(dict, \"episode_result\"))\n        self.pending = None\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "initialize": "    def initialize(self):\n        self.pending = None\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "deltext": "    def deltext(self, e: float):\n        import json\n\n        _ = e\n        for msg in self.input[\"final_state\"].values:\n            completed = []\n            prep_bonus_ids = []\n            for s, times in msg[\"stage_times\"].items():\n                assay_end = times.get(\"assay_end\")\n                if isinstance(assay_end, (int, float)) and assay_end <= self.horizon:\n                    completed.append(s)\n\n                prep_end = times.get(\"preparation_end\")\n                if isinstance(prep_end, (int, float)) and prep_end <= 3:\n                    prep_bonus_ids.append(s)\n\n            completed_count = len(completed)\n            prep_bonus = len(prep_bonus_ids)\n            invalid_count = int(msg.get(\"invalid_action_count\", 0))\n            composite_score = 10 * completed_count + prep_bonus\n\n            self.pending = {\n                \"event\": \"result\",\n                \"episode_id\": msg[\"episode_id\"],\n                \"completed_samples_by_deadline\": completed_count,\n                \"completed_sample_ids_by_deadline\": sorted(completed),\n                \"prep_bonus\": prep_bonus,\n                \"prep_bonus_sample_ids\": sorted(prep_bonus_ids),\n                \"score_formula\": \"composite_score = 10 * completed_samples_by_deadline + prep_bonus; tie-breaker fewer invalid_action_count\",\n                \"composite_score\": composite_score,\n                \"score\": composite_score,\n                \"invalid_action_count\": invalid_count,\n                \"overall_valid\": invalid_count == 0,\n                \"per_sample_final_status\": msg[\"sample_stage\"],\n                \"per_sample_stage_times\": msg[\"stage_times\"],\n                \"horizon\": self.horizon,\n            }\n            print(json.dumps(self.pending), flush=True)\n            self.hold_in(\"EMIT\", 0.0)",
+          "lambdaf": "    def lambdaf(self):\n        if self.phase == \"EMIT\" and self.pending is not None:\n            self.output[\"episode_result\"].add(self.pending)",
+          "deltint": "    def deltint(self):\n        self.pending = None\n        self.hold_in(\"IDLE\", float(\"inf\"))",
+          "exit": "    def exit(self):\n        return"
+        }
+      }
+    ],
+    "edges": [
+      [
+        "w1",
+        "w2",
+        "contains"
+      ],
+      [
+        "w1",
+        "w3",
+        "contains"
+      ],
+      [
+        "w1",
+        "w4",
+        "contains"
+      ],
+      [
+        "w2",
+        "w3",
+        "hour_packet"
+      ],
+      [
+        "w3",
+        "w4",
+        "final_state"
+      ],
+      [
+        "w4",
+        "w1",
+        "episode_result"
+      ]
+    ],
+    "groups": [
+      {
+        "members": [
+          "w2",
+          "w3",
+          "w4"
+        ],
+        "label": "children of wet_lab_assay_scheduling"
+      }
+    ]
+  },
+  "eval": [
+    "Direct run (outputs_v4) reported Strategy C as final decision.",
+    "DEVS-assisted run (outputs_v4) executed fixed scripts A/B/C and selected Strategy B from composite score evidence.",
+    "This case demonstrates text-only reasoning failure on subtle legality + scoring rules, corrected by executable simulation."
+  ],
+  "evalFlow": [
+    {
+      "id": "w-u1",
+      "step": "Step 1",
+      "title": "Task Prompt and Baseline Reasoning",
+      "paperStep": "Paper Mapping: direct inference baseline",
+      "artifact": "outputs_v4/scene_2_direct_answer.md",
+      "result": "Direct baseline gave final decision Strategy C (incorrect under executable scoring)."
+    },
+    {
+      "id": "w-u2",
+      "step": "Step 2",
+      "title": "LLM to DEVS Spec Packaging",
+      "paperStep": "Paper Mapping: world-model specification synthesis",
+      "artifact": "outputs_v4/scene_2_spec.yaml",
+      "result": "Spec encodes delayed lockout legality and composite scoring formula for fixed candidate scripts."
+    },
+    {
+      "id": "w-u3",
+      "step": "Step 3",
+      "title": "Executable DEVS Construction and Run",
+      "paperStep": "Paper Mapping: transition-system execution",
+      "artifact": "working_dirs/scene2_gen_v3/tasks/wet_lab_assay_scheduling/devs_project/run_wet_lab_assay_scheduling.py",
+      "result": "Executable runs produced A=21, B=23, C=22 composite scores (B best)."
+    },
+    {
+      "id": "w-u4",
+      "step": "Step 4",
+      "title": "Tool-assisted Re-Reasoning",
+      "paperStep": "Paper Mapping: model-in-the-loop correction",
+      "artifact": "outputs_v4/scene_2_assisted_answer.md",
+      "result": "After tool evidence, final decision switches to Strategy B."
+    }
+  ]
+}

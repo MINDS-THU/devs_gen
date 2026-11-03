@@ -1,4 +1,4 @@
-import { splitAbpInputText } from '../utils/helpers'
+/* eslint-disable no-useless-escape */
 
 export const PAPER_METHOD_META = {
   ta: {

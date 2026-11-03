@@ -403,6 +403,28 @@ body {
   margin: 1rem 0 1.25rem;
 }
 
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.scenario-grid span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--background-secondary);
+}
+
+.scenario-grid small {
+  color: var(--text-secondary);
+}
+
 .score-card h4 {
   margin: 0 0 0.5rem;
   color: var(--text-primary);
@@ -465,6 +487,57 @@ body {
 .content-intro-inline {
   max-width: 980px;
   margin: 1.5rem auto 0;
+}
+
+.example-viewer-heading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  margin: 3rem auto 1.25rem;
+}
+
+.example-viewer-heading .title {
+  margin: 0 !important;
+}
+
+.example-viewer-toggle {
+  position: absolute;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--background-primary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.example-viewer-toggle:hover,
+.example-viewer-toggle:focus-visible {
+  border-color: var(--primary-color);
+  background: rgba(37, 99, 235, 0.06);
+  color: var(--primary-color);
+  outline: none;
+}
+
+.example-viewer-summary {
+  max-width: 720px;
+  margin: 0 auto 1.5rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.example-viewer-content[hidden],
+.example-viewer-summary[hidden] {
+  display: none !important;
 }
 
 .deep-dive-frame {
@@ -556,7 +629,7 @@ body {
   display: flex;
   margin-top: 1.5rem;
   margin-bottom: 0;
-  align-items: stretch;
+  align-items: flex-start;
 }
 
 .result-layout > .column {
@@ -567,7 +640,7 @@ body {
 
 .result-layout > .column > * {
   width: 100%;
-  height: 100%;
+  height: auto;
 }
 
 .benchmark-layout .figure-card,
@@ -1117,7 +1190,8 @@ code {
   .artifact-grid,
   .decision-grid,
   .decision-compare,
-  .score-grid {
+  .score-grid,
+  .scenario-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1135,6 +1209,15 @@ code {
 
   .deep-dive-inline-app {
     min-height: 620px;
+  }
+
+  .example-viewer-heading {
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .example-viewer-toggle {
+    position: static;
   }
 }
 
@@ -1378,6 +1461,3 @@ a:focus {
     box-shadow: none !important;
   }
 }
-
-
-

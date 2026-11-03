@@ -41,12 +41,6 @@ code, pre, .font-mono {
   border-radius: 8px !important;
 }
 
-/* Remove the benchmark/workflow tab strip while keeping the active summary text. */
-#root > div > section:first-child > p:first-child,
-#root > div > section:first-child > div.grid:first-of-type {
-  display: none !important;
-}
-
 /* Flatten the benchmark deep-dive layout by removing the left guidance rail. */
 #root > div [class*="lg:grid-cols-[170px_minmax(0,1fr)]"] {
   grid-template-columns: minmax(0, 1fr) !important;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useRef, useState, useMemo } from 'react'
 
 export default function CodeGraph({ graphKey, graph, selectedCodeNodeId, setSelectedCodeNodeId, compact = false }) {
   const ATOMIC_HALF_W = compact ? 70 : 78
@@ -46,12 +46,6 @@ export default function CodeGraph({ graphKey, graph, selectedCodeNodeId, setSele
   const [dragEnabled, setDragEnabled] = useState(true)
   const [dragging, setDragging] = useState(null)
   const svgRef = useRef(null)
-
-  useEffect(() => {
-    setPositions(Object.fromEntries(graph.nodes.map((n) => [n.id, { x: n.x, y: n.y }])))
-    setDragging(null)
-    setDragEnabled(true)
-  }, [graphKey, graph])
 
   const nodeById = Object.fromEntries(
     graph.nodes.map((n) => {
@@ -148,12 +142,12 @@ export default function CodeGraph({ graphKey, graph, selectedCodeNodeId, setSele
   return (
     <div>
       <div className="mb-2 flex items-center justify-between text-[11px] text-slate-500">
-        <span className="text-slate-500">Static layout optimized for readability; optional drag mode for manual tuning.</span>
+        <span className="text-slate-500">Drag nodes to inspect overlapping connections.</span>
         <button
           onClick={() => setDragEnabled((v) => !v)}
           className={`rounded-md border px-2 py-1 ${dragEnabled ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-slate-300 bg-white text-slate-700'}`}
         >
-          {dragEnabled ? 'Drag: ON' : 'Drag: OFF'}
+          {dragEnabled ? 'Drag nodes: on' : 'Drag nodes: off'}
         </button>
       </div>
       <div className={`mb-2 flex flex-wrap items-center gap-3 ${compact ? 'text-[9px]' : 'text-[10px]'} text-slate-500`}>

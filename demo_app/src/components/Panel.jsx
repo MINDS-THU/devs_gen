@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion'
 
+const MotionSection = motion.section
+
 export default function Panel({ icon, title, children }) {
   return (
-    <motion.section
+    <MotionSection
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       className="min-w-0 w-full rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-lg"
@@ -12,6 +14,6 @@ export default function Panel({ icon, title, children }) {
         {title}
       </h2>
       {children}
-    </motion.section>
+    </MotionSection>
   )
 }

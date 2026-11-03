@@ -70,23 +70,3 @@ export function splitAbpInputText(inputText = '') {
 export function withUnknownType(items = []) {
   return items.map((x) => (typeof x === 'string' ? { name: x, type: '?' } : x))
 }
-
-export function initAi2InteractiveState() {
-  return {
-    t: 0,
-    agentHolding: null,
-    objects: {
-      mug_1: { parent: 'counter', held: false },
-      apple_1: { parent: 'fridge_1', held: false },
-    },
-    receptacles: {
-      drawer_1: { open: false, goalOpen: false },
-      fridge_1: { open: true, goalOpen: false },
-    },
-    goals: {
-      mug_1: 'drawer_1',
-      apple_1: 'fridge_1',
-    },
-    logs: [],
-  }
-}
