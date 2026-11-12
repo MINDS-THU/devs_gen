@@ -308,13 +308,13 @@
       <h2 class="title is-3 has-text-centered">How DEVS-Gen Works</h2>
       <div class="section-lead">
         <p>
-          DEVS-Gen separates structural planning from component synthesis. Strategic Airlift illustrates the resulting hierarchy, execution, and trace-driven visualization.
+          DEVS-Gen turns a natural-language specification into an executable discrete-event simulator in two stages: top-down structural planning and bottom-up behavioral synthesis. The figure follows Strategic Airlift from the specification to the generated model and its visualization.
         </p>
       </div>
       <div class="figure-card figure-card--large">
-        <img src="static/images/pipeline_3.png" alt="DEVS-Gen structural planning, behavioral synthesis, and visualization pipeline" loading="lazy"/>
+        <a href="static/images/pipeline_core.png" target="_blank" rel="noopener noreferrer" aria-label="Open the DEVS-Gen method figure at full resolution" style="cursor: zoom-in;"><img src="static/images/pipeline_core.png" alt="DEVS-Gen: top-down structural planning produces a PlanTree; bottom-up behavioral synthesis assembles an executable discrete-event simulator" loading="lazy" width="3200" height="1706" style="width: 100%; height: auto;"/></a>
         <p class="figure-caption">
-          Structural planning specifies the model hierarchy and interfaces; behavioral synthesis implements and assembles the components. The generated simulator emits events that can drive a visualization frontend. The physics-engine coupling shown in the figure is a proposed extension.
+          Structural planning produces a PlanTree that specifies the model hierarchy, component responsibilities, and interfaces. Behavioral synthesis implements the components and assembles them into an executable simulator. The lower panels show a visualization extension driven by simulator events. Click the figure to inspect the hierarchy and port connections at full resolution.
         </p>
       </div>
         <div class="step-grid">
@@ -367,6 +367,22 @@
         </div>
       </div>
 
+    </div>
+  </div>
+</section>
+
+<section class="section" id="policy-adaptation" aria-labelledby="policy-adaptation-title">
+  <div class="container page-shell page-shell--wide">
+    <h2 class="title is-3 has-text-centered" id="policy-adaptation-title">Adapting Policies to a Changed Environment</h2>
+    <div class="section-lead">
+      <p>When warehouse B closes, five stores are supplied through warehouse A and one store receives direct factory supply with a different lead time and weekday–weekend demand pattern. The decision agent interacts with an updated simulator to select a policy for the changed supply network.</p>
+    </div>
+    <div class="figure-card figure-card--large">
+      <a href="static/images/policy_adaptation.svg" target="_blank" rel="noopener noreferrer" aria-label="Open the environment-change and policy-adaptation experiment figure at full resolution" style="cursor: zoom-in;">
+        <img src="static/images/policy_adaptation.svg" width="720" height="310" alt="Warehouse closure changes the supply network; an updated simulator supports policy adaptation, reducing mean cost in the changed environment from 1.443 million to 149.3 thousand" loading="lazy" style="width: 100%; height: auto;"/>
+      </a>
+      <p class="figure-caption">In the changed environment, the adapted policy reduces mean cost by 89.65% relative to the original policy. Independent Stockpyl evaluation uses 20 common environment seeds and a 100-day horizon; error bars show one standard deviation across seeds.</p>
+      <p class="figure-caption"><a href="https://demo2.devs-demo.workers.dev/" target="_blank" rel="noopener noreferrer">Explore the environment specifications, simulators, policies, and evaluation records →</a></p>
     </div>
   </div>
 </section>
