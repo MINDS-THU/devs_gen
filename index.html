@@ -378,11 +378,13 @@
       <p>When warehouse B closes, five stores are supplied through warehouse A and one store receives direct factory supply with a different lead time and weekday–weekend demand pattern. The decision agent interacts with an updated simulator to select a policy for the changed supply network.</p>
     </div>
     <div class="figure-card figure-card--large">
-      <a href="static/images/policy_adaptation.svg" target="_blank" rel="noopener noreferrer" aria-label="Open the environment-change and policy-adaptation experiment figure at full resolution" style="cursor: zoom-in;">
-        <img src="static/images/policy_adaptation.svg" width="720" height="265" alt="Warehouse closure changes the supply network; an updated simulator supports policy adaptation, reducing mean cost in the changed environment from 1.443 million to 149.3 thousand" loading="lazy" style="width: 100%; height: auto;"/>
-      </a>
-      <p class="figure-caption">In the changed environment, the adapted policy reduces mean cost by 89.65% relative to the original policy. Independent Stockpyl evaluation uses 20 common environment seeds and a 100-day horizon; error bars show one standard deviation across seeds.</p>
-      <p class="figure-caption"><a href="https://demo2.devs-demo.workers.dev/" target="_blank" rel="noopener noreferrer">Explore the environment specifications, simulators, policies, and evaluation records →</a></p>
+<div class="adaptation-panels">
+<figure><h3 class="adaptation-panel-title">(a) Simulator-supported policy adaptation</h3><a href="static/images/policy_adaptation_workflow.svg" target="_blank" rel="noopener noreferrer" aria-label="Open Simulator-supported policy adaptation at full resolution"><img src="static/images/policy_adaptation_workflow.svg" alt="The network diagrams summarize the original and revised environment specifications. DEVS-Gen builds or updates the simulator from the corresponding specification; the decision agent uses simulator feedback to select a policy." loading="lazy"/></a><figcaption>The network diagrams summarize the original and revised environment specifications. DEVS-Gen builds or updates the simulator from the corresponding specification; the decision agent uses simulator feedback to select a policy.</figcaption>
+</figure>
+<figure><h3 class="adaptation-panel-title">(b) Independent evaluation</h3><a href="static/images/policy_adaptation_evaluation.svg" target="_blank" rel="noopener noreferrer" aria-label="Open Independent evaluation at full resolution"><img src="static/images/policy_adaptation_evaluation.svg" alt="Independent Stockpyl evaluation uses 20 common environment seeds and a 100-day horizon. Bars show mean total cost; error bars show sample standard deviation. In the changed environment, adaptation reduces mean cost by 89.65% relative to retaining the original policy." loading="lazy"/></a><figcaption>Independent Stockpyl evaluation uses 20 common environment seeds and a 100-day horizon. Bars show mean total cost; error bars show sample standard deviation. In the changed environment, adaptation reduces mean cost by 89.65% relative to retaining the original policy.</figcaption>
+</figure>
+</div>
+<p class="figure-caption"><a href="https://demo2.devs-demo.workers.dev/" target="_blank" rel="noopener noreferrer">Explore the environment specifications, simulators, policies, and evaluation records →</a></p>
     </div>
   </div>
 </section>

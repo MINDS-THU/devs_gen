@@ -1461,3 +1461,13 @@ a:focus {
     box-shadow: none !important;
   }
 }
+
+/* Split workflow and evaluation figures. */
+
+.adaptation-panels { display:grid; grid-template-columns:minmax(0,2.4fr) minmax(0,1fr); gap:28px; align-items:start; }
+.adaptation-panels figure { margin:0; min-width:0; }
+.adaptation-panels img { display:block; width:100%; height:auto; min-width:0; }
+.adaptation-panel-title { font-size:18px; font-weight:600; margin:0 0 14px; }
+.adaptation-panels figcaption { font-size:14px; line-height:1.7; color:#4d5e73; margin-top:16px; }
+.adaptation-downloads { display:flex; flex-wrap:wrap; gap:18px; margin-top:12px; font-size:14px; }
+@media(max-width:800px) { .adaptation-panels { grid-template-columns:minmax(0,1fr); } .adaptation-panels figure:last-child { width:100%; max-width:420px; margin-inline:auto; } }
